@@ -1,0 +1,2817 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Siemens APOGEE PPCL Field Panel Editor</title>
+    <style>
+        :root {
+            --siemens-teal: #009999;
+            --panel-dark: #0b131e;
+            --panel-card: #15202e;
+            --panel-border: #243447;
+            --code-bg: #ffffff;
+            /* White Editor Background */
+            --syn-comment: #2f6b2f;
+            /* Green Comments */
+            --syn-condition: #0000cc;
+            /* Blue: statement keywords (IF/THEN/ELSE/SAMPLE/GOSUB/LOOP/WAIT/RETURN)
+               and ON/OFF/SET when used as a command, e.g. ON("%X%POINT") */
+            --syn-action: #800000;
+            /* Maroon: ON/OFF only when used as a bare value, e.g. .EQ. ON */
+            --syn-point: #000000;
+            /* Black: Point Names & $LOC/$ARG locals */
+            --syn-op: #000000;
+            /* Black: Relational Operators (.GT. .LT. etc) */
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--panel-dark);
+            color: #e2e8f0;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background: #081a28;
+            border-bottom: 2px solid var(--siemens-teal);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand-logo {
+            background: var(--siemens-teal);
+            color: #fff;
+            font-weight: 900;
+            padding: 4px 8px;
+            letter-spacing: 1px;
+            font-size: 14px;
+            border-radius: 2px;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* --- TAB BAR (emulates physical panel function keys) --- */
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+            border-bottom: 2px solid var(--panel-border);
+        }
+
+        .tab-btn {
+            width: auto;
+            background: #0f1a26;
+            color: #94a3b8;
+            border: 1px solid var(--panel-border);
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            padding: 10px 18px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            cursor: pointer;
+            position: relative;
+            top: 2px;
+        }
+
+        .tab-btn:hover {
+            background: #16283b;
+            color: #cbd5e1;
+        }
+
+        .tab-btn.active {
+            background: var(--panel-card);
+            color: var(--siemens-teal);
+            border-color: var(--siemens-teal);
+            border-bottom: 2px solid var(--panel-card);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Program Editor tab uses the same monospace face as the PPCL code
+           itself throughout (headings, prompt text, toolbar), instead of
+           mixing in the UI sans-serif font. */
+        #tab-editor {
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        /* --- WRITE / EDIT MODE TOGGLE --- */
+        .mode-toggle {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 12px;
+        }
+
+        .mode-btn {
+            width: auto;
+            background: #0f1a26;
+            color: #94a3b8;
+            border: 1px solid var(--panel-border);
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 4px;
+        }
+
+        .mode-btn:hover {
+            background: #16283b;
+            color: #cbd5e1;
+        }
+
+        .mode-btn.active {
+            background: var(--siemens-teal);
+            color: #fff;
+            border-color: var(--siemens-teal);
+        }
+
+        .equip-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .equip-btn {
+            background: #0f1a26;
+            color: #cbd5e1;
+            border: 1px solid var(--panel-border);
+            padding: 12px 10px;
+            border-radius: 6px;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .equip-btn:hover {
+            background: #16283b;
+            border-color: #2b435c;
+        }
+
+        .equip-btn.active {
+            background: #0a2a2a;
+            border-color: var(--siemens-teal);
+            box-shadow: inset 0 0 0 1px var(--siemens-teal);
+        }
+
+        .equip-btn .equip-title {
+            font-weight: 700;
+            font-size: 13px;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .equip-btn .equip-sub {
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .card {
+            background: var(--panel-card);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            margin-top: 0;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 8px;
+        }
+
+        select,
+        input[type="text"],
+        input[type="password"] {
+            background: #070c12;
+            border: 1px solid var(--panel-border);
+            color: #38bdf8;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background: #0284c7;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #0369a1;
+        }
+
+        button.btn-gen {
+            background: var(--siemens-teal);
+        }
+
+        button.btn-gen:hover {
+            background: #008080;
+        }
+
+        /* --- SYNTAX HIGHLIGHTED EDITOR STYLES --- */
+        .editor-wrapper {
+            position: relative;
+            width: 100%;
+            height: 480px;
+            background: var(--code-bg);
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        #highlightArea,
+        #codeEditor {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            border: none;
+            outline: none;
+        }
+
+        #highlightArea {
+            color: #000;
+            /* Left hit-testable (not pointer-events: none) on purpose: the
+               hover tooltip needs elementFromPoint() to resolve to the
+               individual .syn-point spans in here once #codeEditor's own
+               pointer-events are briefly disabled during a mousemove. Since
+               #codeEditor sits on top (z-index 2) and handles all normal
+               interaction, this layer only ever receives events during that
+               deliberate hit-test. */
+            overflow-y: auto;
+            z-index: 1;
+        }
+
+        #codeEditor {
+            color: transparent;
+            caret-color: #000000;
+            /* Visible black cursor */
+            background: transparent;
+            resize: none;
+            z-index: 2;
+        }
+
+        /* Syntax Highlighted Span Classes */
+        .syn-comment {
+            color: var(--syn-comment);
+            font-weight: bold;
+        }
+
+        .syn-cond {
+            color: var(--syn-condition);
+            font-weight: bold;
+        }
+
+        .syn-action {
+            color: var(--syn-action);
+            font-weight: bold;
+        }
+
+        .syn-point {
+            color: var(--syn-point);
+            font-weight: normal;
+        }
+
+        .syn-op {
+            color: var(--syn-op);
+            font-weight: normal;
+        }
+
+        .terminal-out {
+            background: #070c12;
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 12px;
+            height: 460px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #cbd5e1;
+        }
+
+        .cheat-box {
+            font-family: monospace;
+            font-size: 11px;
+            color: #cbd5e1;
+            background: #070c12;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        /* --- STATUS BAR (emulates real panel footer) --- */
+        .status-bar {
+            margin-top: 16px;
+            background: #081a28;
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 6px 14px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 11px;
+            color: #64748b;
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+
+        .status-bar span.dot {
+            color: #34d399;
+        }
+
+        /* --- RESPONSIVE LAYOUT --- */
+        @media (max-width: 1150px) {
+            .editor-wrapper {
+                height: 380px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 12px;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+            }
+
+            .tab-btn {
+                padding: 8px 10px;
+                font-size: 10px;
+            }
+        }
+
+        /* --- EDITOR TOOLBAR (functional buttons only) --- */
+        .win-toolbar {
+            background: #ece9d8;
+            border: 1px solid #8a8a8a;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 6px;
+            flex-wrap: wrap;
+        }
+
+        .win-toolbar button.win-icon-btn {
+            width: auto;
+            background: #ece9d8;
+            color: #000;
+            border: 1px solid transparent;
+            border-radius: 3px;
+            padding: 3px 8px;
+            font-size: 14px;
+            line-height: 1.2;
+            font-weight: normal;
+        }
+
+        .win-toolbar button.win-icon-btn:hover:not(:disabled) {
+            background: #ffffff;
+            border-color: #0a246a;
+        }
+
+        .win-toolbar select {
+            width: 58px;
+            margin-bottom: 0;
+            padding: 2px 4px;
+            font-size: 11px;
+            color: #000;
+            background: #fff;
+            border: 1px solid #8a8a8a;
+        }
+
+        .win-toolbar label {
+            font-size: 11px;
+            color: #000;
+            margin: 0 2px;
+        }
+
+        .win-toolbar .sep {
+            width: 1px;
+            height: 20px;
+            background: #b8b4a8;
+            margin: 0 4px;
+        }
+
+        .editor-wrapper.chrome-attached {
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+        }
+
+        /* --- LOADING / DISABLED BUTTON STATES --- */
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        button .spinner {
+            display: inline-block;
+            width: 11px;
+            height: 11px;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-top-color: #fff;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: -1px;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* --- FEEDBACK SCORE BADGE --- */
+        .score-badge-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .score-circle {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 13px;
+            flex-shrink: 0;
+            border: 2px solid currentColor;
+        }
+
+        .score-good {
+            color: #34d399;
+        }
+
+        .score-mid {
+            color: #fbbf24;
+        }
+
+        .score-bad {
+            color: #f87171;
+        }
+
+        /* --- LIVE LINTER --- */
+        .code-line {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            min-height: 1.5em;
+        }
+
+        .code-line.line-error {
+            background: rgba(220, 38, 38, 0.16);
+        }
+
+        .code-line.line-warning {
+            background: rgba(217, 119, 6, 0.16);
+        }
+
+        .issues-panel {
+            margin-top: 10px;
+            background: #070c12;
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 8px 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+        }
+
+        .issue-row {
+            padding: 3px 0;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .issue-row:last-child {
+            border-bottom: none;
+        }
+
+        .issue-row.error {
+            color: #f87171;
+        }
+
+        .issue-row.warning {
+            color: #fbbf24;
+        }
+
+        /* --- SIMULATOR RESULTS --- */
+        .sim-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            margin: 16px 0 8px;
+        }
+
+        .sim-section-title:first-child {
+            margin-top: 0;
+        }
+
+        .sim-error-box {
+            background: #2a0f0f;
+            border: 1px solid #7f1d1d;
+            border-radius: 4px;
+            padding: 8px 10px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            color: #fca5a5;
+            margin-bottom: 8px;
+        }
+
+        .sim-error-box div {
+            padding: 2px 0;
+        }
+
+        .sim-point-row {
+            display: grid;
+            grid-template-columns: 1fr 60px 90px 20px 90px;
+            gap: 8px;
+            padding: 4px 8px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .sim-point-row.header {
+            color: #64748b;
+            text-transform: uppercase;
+            font-size: 10px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .sim-point-row.changed {
+            background: rgba(56, 189, 248, 0.08);
+        }
+
+        .sim-point-row-3col {
+            display: grid;
+            grid-template-columns: 1fr 70px 120px;
+            gap: 8px;
+            padding: 4px 8px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .sim-point-row-3col.header {
+            color: #64748b;
+            text-transform: uppercase;
+            font-size: 10px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        /* --- FORCE STARTING VALUES (interactive simulation panel) --- */
+        .force-value-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 8px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            border-bottom: 1px solid #1e293b;
+            flex-wrap: wrap;
+        }
+
+        .force-value-name {
+            color: #c2410c;
+        }
+
+        .force-value-toggle {
+            display: flex;
+            gap: 4px;
+        }
+
+        .fv-btn {
+            background: #0b1622;
+            border: 1px solid var(--panel-border);
+            color: #94a3b8;
+            font-size: 11px;
+            padding: 3px 9px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .fv-btn:hover {
+            border-color: var(--siemens-teal);
+        }
+
+        .fv-btn.active {
+            background: var(--siemens-teal);
+            border-color: var(--siemens-teal);
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .force-value-input {
+            width: 100px;
+            margin-bottom: 0;
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        /* --- POINT TYPE REFERENCE (single clickable list) --- */
+        .point-type-chip {
+            width: auto;
+            display: inline-block;
+            background: #0f1a26;
+            color: #cbd5e1;
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .point-type-chip:hover {
+            background: #16283b;
+            color: #fff;
+        }
+
+        .point-type-chip.active {
+            background: var(--siemens-teal);
+            color: #fff;
+            border-color: var(--siemens-teal);
+        }
+
+        /* --- HOVER TOOLTIP (point type + live simulated value) --- */
+        #pointTooltip {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            background: #0b131e;
+            border: 1px solid var(--siemens-teal);
+            border-radius: 4px;
+            padding: 8px 10px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            color: #e2e8f0;
+            max-width: 320px;
+            line-height: 1.5;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .sim-trace {
+            background: #070c12;
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 10px;
+            max-height: 320px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            white-space: pre-wrap;
+        }
+
+        .sim-trace .cycle-header {
+            color: var(--siemens-teal);
+            font-weight: bold;
+            margin-top: 6px;
+        }
+
+        .sim-trace .trace-error {
+            color: #f87171;
+        }
+
+        /* --- LEARN PPCL TAB --- */
+        .learn-section {
+            margin-bottom: 22px;
+        }
+
+        .learn-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .learn-section h3 {
+            color: var(--siemens-teal);
+            font-size: 14px;
+            margin: 0 0 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .learn-section p {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            margin: 0 0 8px;
+        }
+
+        .learn-code {
+            background: #070c12;
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 10px 12px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12.5px;
+            color: #38bdf8;
+            white-space: pre-wrap;
+            margin: 6px 0 10px;
+        }
+
+        .learn-code .c { color: #2f6b2f; }
+        .learn-code .kw { color: #60a5fa; font-weight: bold; }
+        .learn-code .pt { color: #e2e8f0; }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div>
+            <span class="brand-logo">SIEMENS</span>
+            <strong> Program Editor</strong>
+        </div>
+        <div style="font-family: monospace; font-size: 12px; color: #34d399;">● FIELD PANEL ONLINE</div>
+    </header>
+
+    <div id="pointTooltip"></div>
+
+    <div class="container">
+
+        <!-- TAB BAR -->
+        <div class="tab-bar">
+            <button class="tab-btn" data-tab="learn" onclick="switchTab('learn')">F0 · Learn PPCL</button>
+            <button class="tab-btn active" data-tab="editor" onclick="switchTab('editor')">F1 · Program
+                Editor &amp; Simulator</button>
+            <button class="tab-btn" data-tab="diagnostics" onclick="switchTab('diagnostics')">F2 · Diagnostics</button>
+            <button class="tab-btn" data-tab="equipment" onclick="switchTab('equipment')">F3 · Equipment
+                Focus</button>
+        </div>
+
+        <!-- TAB: LEARN PPCL (beginner mode) -->
+        <div class="tab-panel" id="tab-learn">
+            <div class="card">
+                <div class="card-title">Beginner Mode -- Learn PPCL Basics</div>
+                <p style="color:#94a3b8; font-size:12px; margin-top:-4px;">
+                    A quick primer on the PPCL syntax this trainer uses, before you dive into Beginner,
+                    Intermediate, or Expert scenarios. You don't need to memorize this -- come back any time.
+                </p>
+
+                <div class="learn-section">
+                    <h3>1. What is PPCL?</h3>
+                    <p>PPCL (Powers Process Control Language) is the line-numbered programming language used on
+                        Siemens APOGEE field panels to write building automation control sequences -- things
+                        like "if the room is too warm, open the cooling valve." Programs run top-to-bottom, once
+                        per scan cycle, over and over, continuously checking conditions and updating outputs.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>2. Line Numbers</h3>
+                    <p>Every statement starts with a line number, traditionally in steps of 10 (01000, 01010,
+                        01020...) so you can insert a new line later without renumbering everything. This editor
+                        auto-numbers for you, starting at 01000.</p>
+                    <div class="learn-code">01000 <span class="pt">"%X%CT01.FAN.ENA"</span> = ON
+01010 <span class="pt">"%X%CT01.FAN.SPD"</span> = 55</div>
+                </div>
+
+                <div class="learn-section">
+                    <h3>3. Points -- the things you read and control</h3>
+                    <p>A "point" is a single value in the field panel's database -- a sensor reading, a
+                        command output, or an internal calculated value. Point names are always quoted strings
+                        following the pattern <code>"%X%SYSTEM.SUBPOINT"</code>, e.g.
+                        <code>"%X%EF01.EF.RUN"</code> (EF01's Exhaust Fan Run Output). The Program Editor tab
+                        shows you exactly which points a scenario expects you to use.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>3a. Point Type Reference</h3>
+                    <p>Every point also has a type code (LAI, LDO, L2SL...) describing what kind of I/O it
+                        wires to in the field. Click a type below to see it used in a real scenario.</p>
+                    <div class="cheat-box" style="border: 1px solid var(--siemens-teal);">
+                        <div id="pointTypeList" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+                        <div id="pointTypeExample"
+                            style="display: none; margin-top: 10px; padding: 8px 10px; background: #0b131e; border-left: 3px solid var(--siemens-teal); border-radius: 2px; line-height: 1.6;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="learn-section">
+                    <h3>4. IF / THEN / ELSE</h3>
+                    <p>The core building block. The condition must be wrapped in parentheses. ELSE is optional
+                        but usually needed so the output goes back to its normal state when the condition stops
+                        being true.</p>
+                    <div class="learn-code"><span class="kw">01000 IF</span> (<span class="pt">"%X%MAU01.DAT"</span> .GT. <span class="pt">"%X%MAU01.DAT.HI"</span>) <span class="kw">THEN</span> ON (<span class="pt">"%X%MAU01.DAT.ALM"</span>) <span class="kw">ELSE</span> OFF (<span class="pt">"%X%MAU01.DAT.ALM"</span>)</div>
+                </div>
+
+                <div class="learn-section">
+                    <h3>5. Comparison Operators</h3>
+                    <p><code>.EQ.</code> equal, <code>.NE.</code> not equal, <code>.GT.</code> greater than,
+                        <code>.LT.</code> less than, <code>.GE.</code> greater or equal, <code>.LE.</code> less
+                        or equal, <code>.AND.</code> / <code>.OR.</code> to combine conditions. They always sit
+                        between two values, surrounded by dots.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>6. ON() / OFF() / SET() -- commands vs. values</h3>
+                    <p>ON/OFF/SET are commands only when immediately followed by parentheses, e.g.
+                        <code>ON("%X%PT")</code> or <code>SET(55,"%X%PT")</code>. Written bare (no parentheses),
+                        ON/OFF are just values you compare against, e.g.
+                        <code>IF ("%X%FCU101.CLG.VLV" .EQ. ON) THEN ...</code> checks whether a point's current
+                        value already equals ON -- it doesn't turn anything on.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>7. SAMPLE(n) -- timers and accumulators</h3>
+                    <p>SAMPLE(n) makes something only execute once every n seconds instead of every scan cycle
+                        -- the standard way to build a timer or delay. It can gate just the action inside a
+                        THEN clause:</p>
+                    <div class="learn-code"><span class="kw">01000 IF</span> (<span class="pt">"%X%MAU01.SF.SS"</span> .EQ. ON .AND. <span class="pt">"%X%MAU01.SF.S"</span> .EQ. OFF) <span class="kw">THEN SAMPLE</span>(1) <span class="pt">"%X%MAU01.SF.ALM.TMR"</span> = <span class="pt">"%X%MAU01.SF.ALM.TMR"</span> + 1
+<span class="kw">01010 IF</span> (<span class="pt">"%X%MAU01.SF.ALM.TMR"</span> .GT. 30) <span class="kw">THEN</span> ON (<span class="pt">"%X%MAU01.SF.ALM"</span>)</div>
+                    <p>Or it can gate an entire IF statement placed right after it -- real field panel dumps use
+                        this form just as often, especially inside a GOTO-dispatched alarm block. Here the whole
+                        condition check, not just the action, only runs once every N seconds:</p>
+                    <div class="learn-code"><span class="kw">01000 SAMPLE</span>(1) <span class="kw">IF</span> (<span class="pt">"%X%AHU02.DAT"</span> .GT. <span class="pt">"%X%AHU02.DAT.HI"</span>) <span class="kw">THEN</span> <span class="pt">"%X%AHU02.DAT.ALM.TMR"</span> = <span class="pt">"%X%AHU02.DAT.ALM.TMR"</span> + 1</div>
+                    <p>Both forms are valid PPCL and this trainer's simulator runs either one correctly --
+                        use whichever reads more naturally for the sequence you're writing.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>8. GOSUB / RETURN -- subroutines</h3>
+                    <p>GOSUB jumps execution to another line number and runs until it hits RETURN, then comes
+                        back to right after the GOSUB call. Handy for logic reused in several places in one
+                        program.</p>
+                    <div class="learn-code"><span class="kw">01000 GOSUB</span> 1100
+...
+<span class="kw">01100</span> C ---- SUBROUTINE ----
+<span class="kw">01110 IF</span> (<span class="pt">"%X%EF01.LVR.POS"</span> .EQ. OFF) <span class="kw">THEN</span> ON (<span class="pt">"%X%EF01.EF.ALM"</span>)
+<span class="kw">01120 RETURN</span></div>
+                    <p>Two rules from the Siemens manual worth knowing: don't pair GOSUB directly with an
+                        IF/THEN/ELSE (call it from a plain line instead), and don't put another timed command --
+                        LOOP, SAMPLE, TOD, WAIT -- inside the subroutine body itself. The last line of a
+                        subroutine must always be RETURN.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>8a. GOTO -- decision-tree dispatch</h3>
+                    <p>GOTO permanently redirects execution to another line number -- unlike GOSUB, it never
+                        comes back. Real Siemens AHU programs lean on this constantly: at the very top of the
+                        program, a short block checks safety trips first (smoke detectors, freeze stats, high
+                        static), unconditionally overriding everything else, then checks which operating mode is
+                        active and jumps to that mode's block. Safety is always checked before mode, never after
+                        -- a real fault has to win regardless of what the schedule says.</p>
+                    <div class="learn-code"><span class="kw">01000 IF</span> (<span class="pt">"%X%AHU01.SSD"</span> .EQ. ON) <span class="kw">THEN GOTO</span> 02000
+<span class="kw">01010 IF</span> (<span class="pt">"%X%BLDG.OCC.STATE"</span> .EQ. 0) <span class="kw">THEN GOTO</span> 01100
+<span class="kw">01020 IF</span> (<span class="pt">"%X%BLDG.OCC.STATE"</span> .EQ. 1) <span class="kw">THEN GOTO</span> 01200
+<span class="kw">01100</span> C --- OCCUPIED BLOCK ---
+<span class="kw">01110</span> ON (<span class="pt">"%X%AHU01.SF.ENA"</span>)
+<span class="kw">01120 GOTO</span> 03000
+<span class="kw">01200</span> C --- UNOCCUPIED BLOCK ---
+<span class="kw">01210</span> OFF (<span class="pt">"%X%AHU01.SF.ENA"</span>)
+<span class="kw">01220 GOTO</span> 03000
+<span class="kw">02000</span> C --- SAFETY BLOCK ---
+<span class="kw">02010</span> OFF (<span class="pt">"%X%AHU01.SF.ENA"</span>)
+<span class="kw">02020 GOTO</span> 03000
+<span class="kw">03000</span> C --- END OF SCAN ---</div>
+                    <p>Notice every GOTO target is a line number <em>higher</em> than the line it's
+                        jumping from -- the Safety check at line 01000 jumps forward to the Safety block at
+                        02000, and every block (Occupied, Unoccupied, and Safety) ends with its own
+                        <code>GOTO 03000</code> forward to the shared landing line, which sits last in the
+                        program since it has the highest number. That's not a style choice: without it,
+                        finishing the Occupied block would fall straight through into whatever comes next in
+                        the file (here, the Safety block), silently undoing what the block just did. Every
+                        dispatched section needs its own way out, and every jump has to move forward.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>8b. LOOP -- PID control loops</h3>
+                    <p>LOOP drives a modulating output (a valve, a VFD speed signal) to hold an analog process
+                        variable at a setpoint -- the software version of a PID controller. It always takes
+                        exactly 12 positional arguments, in this fixed order:</p>
+                    <div class="learn-code"><span class="kw">LOOP</span>(type, pv, cv, sp, pg, ig, dg, st, bias, lo, hi, 0)</div>
+                    <p><code>type</code> is 0 (direct acting -- output rises as the process variable rises) or
+                        128 (reverse acting -- output rises as the process variable falls, e.g. a pump speeding up
+                        as pressure drops). <code>pv</code> is the point being measured, <code>cv</code> the
+                        output point being driven, <code>sp</code> the setpoint. <code>pg</code>/<code>ig</code>/
+                        <code>dg</code> are the proportional, integral, and derivative gains (set unused gains to
+                        0). <code>st</code> is the sample time in seconds (minimum 1). <code>bias</code> is the
+                        output value when the process variable exactly equals setpoint in a proportional-only
+                        loop. <code>lo</code>/<code>hi</code> are the output's low and high limits, and the
+                        trailing <code>0</code> is always present but unused.</p>
+                    <div class="learn-code">2018 <span class="kw">LOOP</span>(0,RM100,HVALVE,HSETPT,PGAIN,0,0,1,5.5,3.0,9.0,0)</div>
+                    <p>That official example drives a heating valve (HVALVE, output range 3.0-9.0) to hold room
+                        temperature (RM100) at setpoint (HSETPT) with proportional gain only (PGAIN) and no
+                        integral/derivative action, sampled every 1 second, biased to 5.5 at the valve's midpoint.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>9. $LOC / $ARG -- local variables</h3>
+                    <p><code>$LOC</code> and <code>$ARG</code> (optionally numbered, e.g. <code>$LOC1</code>) are
+                        scratch variables local to the program -- useful for temporary math or holding a value
+                        partway through a calculation, without needing a permanent database point for it.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>10. DEFINE -- reusing one block of code across devices</h3>
+                    <p>Syntax: <code>DEFINE(abbrev,string)</code>. <code>abbrev</code> is a short placeholder;
+                        <code>string</code> is the text (typically a long point-name prefix) it stands in for.
+                        Wherever you use the placeholder later in the program, it must be written surrounded by
+                        percent signs -- <code>%abbrev%</code> -- so PPCL knows to substitute it. This lets five
+                        identical AHUs share one block of control logic: rather than writing (or copy-pasting)
+                        five near-duplicate programs that differ only in their point names, each device's copy of
+                        the program carries its own DEFINE line mapping the same placeholder to that unit's real
+                        point prefix, and the logic below it stays identical.</p>
+                    <div class="learn-code"><span class="kw">01000 DEFINE</span>(AHU,<span class="pt">"BUILDING1.AHU01."</span>)
+<span class="kw">01010 ON</span> (<span class="pt">"%AHU%SFAN"</span>)</div>
+                    <p>Line 01010 is equivalent to writing <code>ON ("BUILDING1.AHU01.SFAN")</code> directly --
+                        DEFINE runs once when the program is loaded onto the controller (it isn't part of normal
+                        line-by-line execution), and an abbreviation that starts with the letter C will fail to
+                        compile since a leading C marks a comment line. This trainer's scenarios don't require
+                        DEFINE -- every point name is spelled out in full so a scenario stays self-contained and
+                        checkable -- but it's worth knowing about since real multi-unit PPCL programs lean on it
+                        heavily to avoid maintaining the same logic in five different places.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>11. Comments</h3>
+                    <p>A line starting with a bare <code>C</code> token is a comment -- often used as a header
+                        or label above a block of related logic, and completely ignored by the panel at
+                        runtime. Real PPCL programs typically open with one comment naming the whole program,
+                        then a comment ahead of each logical section.</p>
+                    <div class="learn-code">01000 C --- CHLR CHILLER PLANT CONTROL PROGRAM ---
+01010 C --- LEAD-LAG ROTATION LOGIC ---</div>
+                </div>
+
+                <div class="learn-section">
+                    <h3>12. Where to go next</h3>
+                    <p>Head to the <strong>Program Editor &amp; Simulator</strong> tab (F1), pick
+                        Beginner/Intermediate/Expert and Write New Code or Edit Existing Code, then click
+                        "Generate Scenario." Want to drill one specific piece of equipment instead of a random
+                        mix -- just AHUs, just chillers, just pumps? Use <strong>Equipment Focus</strong> (F3) to
+                        pick the equipment first. Write your
+                        program, click "Save to Panel" to compile it, then "Run Simulation" right next to it to
+                        watch it execute against sample values -- you can even force specific starting values
+                        first to see exactly how your code reacts. Use <strong>Diagnostics</strong> (F2) for a
+                        full AI audit against the sequence prompt. Stuck? The 💡 Hint button gives progressively
+                        deeper nudges.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: PROGRAM EDITOR -->
+        <div class="tab-panel active" id="tab-editor">
+            <div class="card" style="margin-bottom: 15px;">
+                <div class="mode-toggle">
+                    <button class="mode-btn active" data-mode="write" onclick="setMode('write')">✏️ Write New
+                        Code</button>
+                    <button class="mode-btn" data-mode="edit" onclick="setMode('edit')">🔧 Edit Existing
+                        Code</button>
+                </div>
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                    <div class="card-title" style="margin: 0; border: none;">Controller Sequence Prompt</div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <select id="difficultySelect" style="width: auto; margin-bottom: 0; padding: 6px 8px;">
+                            <option value="easy">🟢 Beginner</option>
+                            <option value="medium" selected>🟡 Intermediate</option>
+                            <option value="expert">🔴 Expert</option>
+                        </select>
+                        <button onclick="loadScenario()" id="genScenarioBtn" class="btn-gen"
+                            style="width: auto; padding: 4px 12px; font-size: 12px;">🎲 Generate
+                            Scenario</button>
+                        <button onclick="getHint()" id="hintBtn" class="btn-gen"
+                            style="width: auto; padding: 4px 12px; font-size: 12px; background: #78350f;">💡
+                            Hint</button>
+                    </div>
+                </div>
+
+                <div id="promptBox"
+                    style="background: #070c12; padding: 10px; border-radius: 4px; font-size: 13px;">
+                    No scenario loaded. Pick a difficulty and click "Generate Scenario" for a sequence to
+                    write, or just start typing your own PPCL below.
+                </div>
+
+                <div id="hintPanel"
+                    style="display: none; margin-top: 10px; background: #1c1406; border-left: 3px solid #fbbf24; padding: 10px; border-radius: 4px; font-size: 13px;">
+                </div>
+            </div>
+
+            <div class="card" id="notUsedPanel" style="display: none; margin-bottom: 15px;"></div>
+
+            <div class="card">
+                <div class="card-title"
+                    style="display: flex; justify-content: space-between; align-items: center; border: none; margin: 0 0 8px;">
+                    <span>Program Editor</span>
+                    <span id="issuesBadge" style="text-transform: none; letter-spacing: normal; font-weight: bold;">✓
+                        No issues found</span>
+                </div>
+
+                <div class="win-toolbar">
+                    <button class="win-icon-btn" title="Clear Code" onclick="newProgram()">🗑️ Clear Code</button>
+                    <span class="sep"></span>
+                    <button class="win-icon-btn" title="Undo"
+                        onclick="document.getElementById('codeEditor').focus(); document.execCommand('undo')">↶
+                        Undo</button>
+                    <button class="win-icon-btn" title="Redo"
+                        onclick="document.getElementById('codeEditor').focus(); document.execCommand('redo')">↷
+                        Redo</button>
+                    <span class="sep"></span>
+                    <button class="win-icon-btn" title="Save Program to file" onclick="saveProgram()">💾 Save</button>
+                    <button class="win-icon-btn" title="Print Program" onclick="window.print()">🖨️ Print</button>
+                    <span class="sep"></span>
+                    <label for="fontSizeSelect">Font:</label>
+                    <select id="fontSizeSelect" onchange="setEditorFontSize(this.value)">
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                        <option value="13" selected>13</option>
+                        <option value="14">14</option>
+                        <option value="16">16</option>
+                    </select>
+                </div>
+
+                <div class="editor-wrapper chrome-attached">
+                    <div id="highlightArea"></div>
+                    <textarea id="codeEditor" spellcheck="false" oninput="lintAndHighlight()"
+                        onkeydown="handleEditorKeydown(event)" onscroll="syncScroll()"
+                        onkeyup="updateStatusLine()" onclick="updateStatusLine()" onfocus="seedFirstLineNumber()"
+                        placeholder="Click here to begin — line 01000 starts automatically, +10 on every new line."></textarea>
+                </div>
+
+                <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button onclick="saveToPanel()" id="saveToPanelBtn" class="btn-gen"
+                        style="width: auto; padding: 8px 16px;">💾 Save to Panel</button>
+                    <button onclick="runSimulationUI()" id="runSimBtn" class="btn-gen" disabled
+                        title="Save to Panel first -- the simulator only runs code the panel has accepted"
+                        style="width: auto; padding: 8px 16px;">▶ Run Simulation</button>
+                    <select id="simCycles" style="width: 100px; margin-bottom: 0;">
+                        <option value="1" selected>1 cycle</option>
+                        <option value="5">5 cycles</option>
+                        <option value="10">10 cycles</option>
+                        <option value="25">25 cycles</option>
+                        <option value="50">50 cycles</option>
+                    </select>
+                    <span style="color: #64748b; font-size: 11px;">Save to Panel compiles and uploads your code
+                        (like a real panel would); Run Simulation then re-executes it and traces exactly what
+                        each line does.</span>
+                </div>
+                <div id="savePanelResult" class="terminal-out"
+                    style="display: none; margin-top: 10px; height: auto; max-height: 400px;"></div>
+
+                <div id="simResults" style="margin-top: 12px;">
+                    <span style="color: #64748b; font-size: 13px;">Save to Panel to compile your code, then Run
+                        Simulation to trace exactly what it does line by line.</span>
+                </div>
+
+                <div class="card" id="forceValuesCard" style="margin-top: 12px; display: none;">
+                    <div class="card-title"
+                        style="border: none; margin: 0 0 6px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                        <span>Force Starting Values (optional)</span>
+                        <span
+                            style="font-size: 11px; color: #64748b; font-weight: normal; text-transform: none; letter-spacing: normal;">
+                            Set a point here, then Save/Run -- any other point whose logic depends on it will
+                            react exactly the way your code says it should. Leave on "Random" to let the
+                            simulator pick a sample value instead.
+                        </span>
+                    </div>
+                    <div id="forceValuesPanel"></div>
+                </div>
+
+                <div class="cheat-box">
+                    <strong>Color Key:</strong>
+                    <span class="syn-point">■ Black (Points, $LOC/$ARG, Operators)</span> |
+                    <span class="syn-cond">■ Blue (IF/THEN/ELSE + ON/OFF/SET as commands)</span> |
+                    <span class="syn-action">■ Maroon (ON/OFF as a value)</span> |
+                    <span class="syn-comment">■ Green (Comments)</span>
+                </div>
+
+                <div class="issues-panel" id="issuesPanel" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- TAB: DIAGNOSTICS -->
+        <div class="tab-panel" id="tab-diagnostics">
+            <div class="card" style="max-width: 640px;">
+                <div class="card-title">Field Panel Diagnostics & AI Inspector</div>
+                <button onclick="gradeCode()" id="gradeBtn">⚡ Compile & Audit Field Program</button>
+
+                <div style="margin-top: 15px;">
+                    <div class="terminal-out" id="feedbackOutput">
+                        <span style="color: #64748b;">Ready. Write code in the Program Editor tab, then click
+                            "Compile & Audit Field Program"...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: EQUIPMENT FOCUS -->
+        <div class="tab-panel" id="tab-equipment">
+            <div class="card">
+                <div class="card-title">Equipment Focus -- Targeted Practice</div>
+                <p style="color:#94a3b8; font-size:12px; margin-top:-4px;">
+                    Skip the random mix and drill one equipment type at a time. Pick what you want to work
+                    on below, choose Write New Code or Edit Existing Code and (optionally) a difficulty, then
+                    generate -- you'll land in the Program Editor with a scenario pulled only from that
+                    equipment's pool.
+                </p>
+
+                <div class="equip-grid" id="equipGrid"></div>
+
+                <div style="margin-top: 14px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+                    <div class="mode-toggle" style="margin-bottom: 0;">
+                        <button class="mode-btn active" data-mode="write" onclick="setMode('write')">✏️ Write New
+                            Code</button>
+                        <button class="mode-btn" data-mode="edit" onclick="setMode('edit')">🔧 Edit Existing
+                            Code</button>
+                    </div>
+                    <select id="equipmentDifficultySelect" style="width: auto; margin-bottom: 0; padding: 6px 8px;">
+                        <option value="">Any difficulty</option>
+                        <option value="easy">🟢 Beginner</option>
+                        <option value="medium">🟡 Intermediate</option>
+                        <option value="expert">🔴 Expert</option>
+                    </select>
+                    <button onclick="generateEquipmentScenario()" id="equipGenBtn" class="btn-gen"
+                        style="width: auto; padding: 8px 16px;" disabled>🎲 Generate Scenario</button>
+                </div>
+                <div id="equipHint" style="margin-top: 8px; color: #64748b; font-size: 12px;">Pick an equipment
+                    type above to enable "Generate Scenario."</div>
+            </div>
+        </div>
+
+        <!-- STATUS BAR -->
+        <div class="status-bar">
+            <span><span class="dot">●</span> ONLINE</span>
+            <span>POINTS LOADED: <span id="statusPointCount">0</span></span>
+            <span>LINE: <span id="statusLine">1</span></span>
+            <span>MODE: EDIT</span>
+        </div>
+
+    </div>
+
+    <script>
+        let currentScenario = null;
+        let activePoints = [];
+        let currentMode = "write"; // "write" (blank slate) or "edit" (starter code + changed requirement)
+
+        // --- EQUIPMENT FOCUS ---
+        // Lets a student generate scenarios from ONE equipment pool instead
+        // of the full random mix. Keys must match app.py's EQUIPMENT_CATEGORIES
+        // exactly. equipmentFocus is a one-shot filter: generateEquipmentScenario()
+        // sets it, calls the normal loadScenario() so all the usual machinery
+        // (Save to Panel gating, force values, etc.) works unchanged, then
+        // clears it again -- so a later "Generate Scenario" click back on the
+        // Program Editor tab goes back to pulling from the full pool rather
+        // than silently staying locked to whatever equipment was last picked.
+        let equipmentFocus = null;
+        const EQUIPMENT_FOCUS_OPTIONS = [
+            { key: "ahu", title: "Air Handling Units", sub: "AHU01 / AHU02 / AHU03 -- fans, dampers, coils, static pressure" },
+            { key: "mau", title: "Make-Up Air Units", sub: "MAU01 -- heating valve, discharge air control" },
+            { key: "fcu", title: "Fan Coil Units", sub: "FCU101 / FCU102 / FCU201 -- room temp, cooling valves, fan speeds" },
+            { key: "exhaust_fan", title: "Exhaust Fans", sub: "EF01 / EF02 -- louver interlock, VFD trouble" },
+            { key: "chiller", title: "Chillers", sub: "CHLR1 / CHLR2 -- staging, lead-lag rotation" },
+            { key: "pump", title: "Pumps", sub: "CHWP / HWP -- lead-lag rotation, PID speed control" },
+            { key: "cooling_tower", title: "Cooling Towers", sub: "CT01 / CT02 -- fan staging, VFD speed control" },
+            { key: "boiler", title: "Boilers", sub: "BLR1 / BLR2 -- N+1 standby rotation on failure" },
+            { key: "crac", title: "CRAC Units", sub: "CRAC201 / CRAC202 -- standby failover, room cooling" },
+            { key: "air_compressor", title: "Air Compressors", sub: "AC101 -- water-cooled bypass valve PID control" }
+        ];
+
+        function renderEquipGrid() {
+            const grid = document.getElementById("equipGrid");
+            if (!grid) return;
+            grid.innerHTML = EQUIPMENT_FOCUS_OPTIONS.map(opt => `
+                <button type="button" class="equip-btn" data-equip="${opt.key}" onclick="selectEquipFocus('${opt.key}')">
+                    <span class="equip-title">${opt.title}</span>
+                    <span class="equip-sub">${opt.sub}</span>
+                </button>
+            `).join("");
+        }
+
+        function selectEquipFocus(key) {
+            document.querySelectorAll(".equip-btn").forEach(b => b.classList.toggle("active", b.dataset.equip === key));
+            equipmentFocus = key;
+            document.getElementById("equipGenBtn").disabled = false;
+            const opt = EQUIPMENT_FOCUS_OPTIONS.find(o => o.key === key);
+            document.getElementById("equipHint").textContent =
+                `Ready -- scenarios will be pulled only from ${opt ? opt.title : key}.`;
+        }
+
+        async function generateEquipmentScenario() {
+            if (!equipmentFocus) return;
+            const mode = document.querySelector('#tab-equipment .mode-btn.active')?.dataset.mode || "write";
+            setMode(mode);
+            const diff = document.getElementById("equipmentDifficultySelect").value;
+            // Keep the Program Editor tab's own difficulty selector in sync
+            // ONLY when a specific tier was chosen -- "Any difficulty" has no
+            // matching option there, so leave that selector untouched rather
+            // than force it into a bad state.
+            if (diff) document.getElementById("difficultySelect").value = diff;
+            switchTab("editor");
+            try {
+                await loadScenario(diff);
+            } finally {
+                equipmentFocus = null;
+            }
+        }
+        let hintLevel = 0; // 0 = no hint requested yet for this scenario, 1-3 = progressively deeper
+        // Last point values produced by either "Run Simulation" or "Save to
+        // Panel" -- read by the hover tooltip so it can show a live value
+        // alongside a point's type. Null until the student runs something.
+        let lastSimSnapshot = null;
+
+        // Gates the "Run Simulation" button: only usable once "Save to Panel"
+        // has actually accepted the current code, mirroring a real panel --
+        // you don't get to watch a program run until it's been uploaded.
+        // Any edit to the code (see lintAndHighlight()) or a fresh scenario
+        // invalidates this, since the code the panel accepted no longer
+        // matches what's in the editor.
+        let panelAccepted = false;
+
+        function setPanelAccepted(accepted) {
+            panelAccepted = accepted;
+            const btn = document.getElementById("runSimBtn");
+            if (btn) btn.disabled = !accepted;
+        }
+
+        // --- FORCE STARTING VALUES ---
+        // Lets a student pin specific points to a known value before running
+        // the simulation instead of always getting a random starting state.
+        // Everything downstream still runs through the student's own parsed
+        // code, so forcing one point (e.g. a smoke detector ON) naturally
+        // cascades into whatever that code does with it -- no special-casing
+        // needed here beyond feeding these into runSimulation()'s initial
+        // point table.
+        let forcedValueState = {};
+
+        function renderForceValuesPanel() {
+            const card = document.getElementById("forceValuesCard");
+            const panel = document.getElementById("forceValuesPanel");
+            if (!card || !panel) return;
+
+            forcedValueState = {};
+
+            if (!activePoints.length) {
+                card.style.display = "none";
+                panel.innerHTML = "";
+                return;
+            }
+            card.style.display = "block";
+
+            panel.innerHTML = activePoints.map(p => {
+                if (["DI", "DO", "BV"].includes(p.type)) {
+                    return `<div class="force-value-row">
+                        <span class="force-value-name">"${p.name}"</span>
+                        <div class="force-value-toggle" data-point="${p.name}">
+                            <button type="button" class="fv-btn active" data-val="">Random</button>
+                            <button type="button" class="fv-btn" data-val="1">${formatPointValue(p, 1)}</button>
+                            <button type="button" class="fv-btn" data-val="0">${formatPointValue(p, 0)}</button>
+                        </div>
+                    </div>`;
+                }
+                return `<div class="force-value-row">
+                    <span class="force-value-name">"${p.name}"</span>
+                    <input type="number" class="force-value-input" data-point="${p.name}" placeholder="random" step="0.1">
+                </div>`;
+            }).join("");
+
+            panel.querySelectorAll(".force-value-toggle").forEach(group => {
+                const name = group.dataset.point;
+                group.querySelectorAll(".fv-btn").forEach(btn => {
+                    btn.addEventListener("click", () => {
+                        group.querySelectorAll(".fv-btn").forEach(b => b.classList.remove("active"));
+                        btn.classList.add("active");
+                        if (btn.dataset.val === "") delete forcedValueState[name];
+                        else forcedValueState[name] = Number(btn.dataset.val);
+                    });
+                });
+            });
+
+            panel.querySelectorAll(".force-value-input").forEach(input => {
+                input.addEventListener("input", () => {
+                    const name = input.dataset.point;
+                    if (input.value === "") delete forcedValueState[name];
+                    else forcedValueState[name] = Number(input.value);
+                });
+            });
+        }
+
+        function getForcedValues() {
+            return { ...forcedValueState };
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
+            document.getElementById("genScenarioBtn").innerHTML = mode === "edit"
+                ? "🎲 Generate Edit Task"
+                : "🎲 Generate Scenario";
+            document.getElementById("promptBox").innerHTML =
+                mode === "edit"
+                    ? `No edit task loaded. Pick a difficulty and click "Generate Edit Task" for starter code plus a changed requirement to implement.`
+                    : `No scenario loaded. Pick a difficulty and click "Generate Scenario" for a sequence to write, or just start typing your own PPCL below.`;
+        }
+
+        // --- TAB SWITCHING ---
+        function switchTab(name) {
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+            document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === `tab-${name}`));
+        }
+
+        // --- SYNTAX HIGHLIGHTING ENGINE (single-pass tokenizer) ---
+        // Matched against real Siemens Insight/APOGEE PPCL panel dumps. Rules:
+        //   - Quoted point names, $LOC/$ARG locals, and relational operators
+        //     (.EQ. .GT. .LT. .GE. .LE. .NE. .AND. .OR.) are BLACK.
+        //   - Statement keywords (IF/THEN/ELSE/SAMPLE/GOSUB/GOTO/LOOP/WAIT/
+        //     RETURN) are BLUE. SET/ON/OFF are also BLUE when used as a
+        //     command, i.e. immediately followed by "(" -- e.g. ON("%X%PT"),
+        //     SET(0,...).
+        //   - A bare ON/OFF used as a comparison VALUE (not a command), e.g.
+        //     ("%X%PT" .EQ. ON), is MAROON.
+        //   - Full-line comments (leading "C" token) are GREEN.
+        // A single combined regex + one replace() pass (via named capture
+        // groups) avoids re-scanning text that already contains injected
+        // <span> markup, which was corrupting the highlight output before.
+        const TOKEN_RE = /(?<point>"[^"]*")|(?<op>\.(?:EQ|GT|LT|GE|LE|NE|AND|OR)\.)|(?<kw>\b(?:IF|THEN|ELSE|SAMPLE|GOSUB|GOTO|LOOP|WAIT|RETURN)\b)|(?<cmd>\b(?:SET|ON|OFF)\b)(?=\s*\()|(?<val>\b(?:ON|OFF)\b)|(?<loc>\$LOC\d*|\$ARG\d*)/g;
+
+        // --- LIVE LINTER ---
+        // Lightweight, deterministic checks that run on every keystroke (no
+        // network call). This is NOT a substitute for the AI audit in the
+        // Diagnostics tab -- it just catches obvious slips instantly:
+        //   - missing/duplicate leading line numbers
+        //   - unbalanced parentheses / quotes
+        //   - a line that's just point names with no actual logic
+        //   - IF whose condition isn't wrapped in parentheses
+        //   - IF with no matching THEN
+        //   - a quoted "%..." point name that isn't in the current
+        //     scenario's point list (likely a typo)
+        //   - a required point from the scenario that's never referenced
+        const LOGIC_TOKEN_RE = /\b(IF|THEN|ELSE|SAMPLE|GOSUB|GOTO|LOOP|WAIT|RETURN|ON|OFF|SET)\b|\.(?:EQ|GT|LT|GE|LE|NE|AND|OR)\.|[=+\-]/;
+
+        // When a scenario is flagged openPoints (occupied/unoccupied and
+        // lead-lag decision-tree exercises), the student is expected to
+        // invent their own point names beyond whatever small "given" list
+        // the scenario provides -- so the "unknown point" typo warning
+        // would just be noise and gets suppressed for those scenarios.
+        const ACTION_AFTER_THEN_ELSE_RE = /\b(?:THEN|ELSE)\s+(ON|OFF|SET)\b(?!\s*\()/;
+
+        function lintCode(rawText) {
+            const lines = rawText.split("\n");
+            const seenNumbers = new Map();
+            const pointNames = new Set(activePoints.map(p => p.name));
+            const isOpenPoints = !!(currentScenario && currentScenario.openPoints);
+            const usedPointNames = new Set();
+            const issuesByLine = {};
+
+            function addIssue(idx, message, severity) {
+                (issuesByLine[idx] = issuesByLine[idx] || []).push({ message, severity });
+            }
+
+            lines.forEach((raw, idx) => {
+                const line = raw.trim();
+                if (!line) return;
+
+                const isComment = /^\d+\s+C\b/.test(line) || /\bC\s/.test(line);
+                const numMatch = line.match(/^(\d+)\b/);
+
+                if (!numMatch) {
+                    addIssue(idx, "Missing leading line number", "error");
+                } else {
+                    const num = numMatch[1];
+                    if (seenNumbers.has(num)) {
+                        addIssue(idx, `Duplicate line number ${num} (first used on line ${seenNumbers.get(num) + 1})`, "error");
+                    } else {
+                        seenNumbers.set(num, idx);
+                    }
+                }
+
+                const openParens = (line.match(/\(/g) || []).length;
+                const closeParens = (line.match(/\)/g) || []).length;
+                if (openParens !== closeParens) {
+                    addIssue(idx, "Unbalanced parentheses", "error");
+                }
+
+                const quoteCount = (line.match(/"/g) || []).length;
+                if (quoteCount % 2 !== 0) {
+                    addIssue(idx, "Unterminated quote", "error");
+                }
+
+                const quoted = line.match(/"[^"]*"/g) || [];
+                let hasKnownPointRef = false;
+                quoted.forEach(q => {
+                    const name = q.slice(1, -1);
+                    if (name.includes("%")) {
+                        if (pointNames.has(name)) {
+                            usedPointNames.add(name);
+                            hasKnownPointRef = true;
+                        } else if (!isComment && pointNames.size > 0 && !isOpenPoints) {
+                            addIssue(idx, `"${name}" is not in this scenario's point list -- check for a typo`, "warning");
+                        }
+                    }
+                });
+
+                if (!isComment && numMatch) {
+                    // Look at everything after the leading line number: if the
+                    // line has a known point reference but no keyword, operator,
+                    // or assignment anywhere, it's just a list of point names.
+                    const withoutNumber = line.slice(numMatch[0].length);
+                    if (hasKnownPointRef && !LOGIC_TOKEN_RE.test(withoutNumber)) {
+                        addIssue(idx, "This line just lists point name(s) with no logic -- add a condition (IF...THEN), comparison, or command (ON/OFF/SET) so it actually does something", "error");
+                    } else if (/\bIF\b/.test(line)) {
+                        if (!/\bIF\s*\(/.test(line)) {
+                            addIssue(idx, "IF condition must be wrapped in parentheses, e.g. IF (\"%X%POINT\" .GT. 10) THEN ...", "error");
+                        }
+                        if (!/\bTHEN\b/.test(line)) {
+                            addIssue(idx, "IF without a matching THEN", "error");
+                        }
+                    }
+
+                    // ON/OFF/SET after THEN or ELSE must be immediately
+                    // followed by a parenthesized point argument -- catches
+                    // things like "...THEN ON (\"%X%A.VLV\") ELSE OFF" where
+                    // the ELSE branch is missing its point name entirely.
+                    if (ACTION_AFTER_THEN_ELSE_RE.test(line)) {
+                        addIssue(idx, "ON/OFF/SET after THEN or ELSE needs a point name in parentheses, e.g. ELSE OFF (\"%X%POINT\")", "error");
+                    }
+                }
+            });
+
+            const missingPoints = activePoints.filter(p => !usedPointNames.has(p.name));
+            return { issuesByLine, missingPoints };
+        }
+
+        function renderIssuesPanel(issuesByLine) {
+            const badge = document.getElementById("issuesBadge");
+            const panel = document.getElementById("issuesPanel");
+
+            const entries = Object.entries(issuesByLine);
+            const errorCount = entries.reduce((n, [, arr]) => n + arr.filter(i => i.severity === "error").length, 0);
+            const warnCount = entries.reduce((n, [, arr]) => n + arr.filter(i => i.severity === "warning").length, 0);
+
+            if (errorCount === 0 && warnCount === 0) {
+                badge.innerHTML = `<span style="color:#34d399;">✓ No issues found</span>`;
+                panel.style.display = "none";
+                panel.innerHTML = "";
+                return;
+            }
+
+            const parts = [];
+            if (errorCount) parts.push(`${errorCount} error${errorCount !== 1 ? "s" : ""}`);
+            if (warnCount) parts.push(`${warnCount} warning${warnCount !== 1 ? "s" : ""}`);
+            badge.innerHTML = `<span style="color:${errorCount ? "#f87171" : "#fbbf24"};">⚠ ${parts.join(", ")}</span>`;
+
+            const rows = entries
+                .sort((a, b) => Number(a[0]) - Number(b[0]))
+                .flatMap(([idx, issues]) => issues.map(i =>
+                    `<div class="issue-row ${i.severity}">Line ${Number(idx) + 1}: ${i.message}</div>`
+                ));
+
+            panel.innerHTML = rows.join("");
+            panel.style.display = "block";
+        }
+
+        // Shown in its own card between the Controller Sequence Prompt and
+        // the Program Editor, so students see at a glance which required
+        // points they haven't wired into their code yet -- much easier to
+        // spot than buried at the bottom of the editor's issues panel.
+        // Collapsed/expanded state persists across re-renders within the
+        // session (e.g. as you type) but resets to expanded for a freshly
+        // generated scenario, via resetNotUsedPanelCollapse() below.
+        let notUsedPanelCollapsed = false;
+
+        function toggleNotUsedPanel() {
+            notUsedPanelCollapsed = !notUsedPanelCollapsed;
+            const body = document.getElementById("notUsedPanelBody");
+            const btn = document.getElementById("notUsedPanelToggle");
+            if (body) body.style.display = notUsedPanelCollapsed ? "none" : "block";
+            if (btn) btn.textContent = notUsedPanelCollapsed ? "▸ Show" : "▾ Hide";
+        }
+
+        function resetNotUsedPanelCollapse() {
+            notUsedPanelCollapsed = false;
+        }
+
+        function renderNotUsedPanel(missingPoints) {
+            const panel = document.getElementById("notUsedPanel");
+            if (!panel) return;
+
+            if (!missingPoints.length) {
+                panel.style.display = "none";
+                panel.innerHTML = "";
+                return;
+            }
+
+            const rows = missingPoints.map(p => `
+                <div style="padding:5px 0; border-top:1px solid var(--panel-border); font-size:12.5px;">
+                    <span style="color:#c2410c;">"${p.name}"</span>
+                    <span style="color:#64748b;"> (${p.type}${p.kind ? " · " + p.kind : ""})</span>
+                    -- ${p.desc}
+                </div>`).join("");
+
+            panel.innerHTML =
+                `<div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleNotUsedPanel()">` +
+                `<span style="color:#fbbf24; font-weight:bold; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">📌 Points Not Yet Used In Your Code (${missingPoints.length})</span>` +
+                `<button type="button" id="notUsedPanelToggle" class="win-icon-btn" style="width:auto; padding:2px 8px; font-size:11px;" onclick="event.stopPropagation(); toggleNotUsedPanel();">${notUsedPanelCollapsed ? "▸ Show" : "▾ Hide"}</button>` +
+                `</div>` +
+                `<div id="notUsedPanelBody" style="display:${notUsedPanelCollapsed ? "none" : "block"};">${rows}</div>`;
+            panel.style.display = "block";
+        }
+
+        function lintAndHighlight() {
+            const editor = document.getElementById("codeEditor");
+            const highlight = document.getElementById("highlightArea");
+            const rawText = editor.value;
+
+            // Any edit invalidates a prior "Save to Panel" acceptance -- the
+            // code the panel ran no longer matches what's in the editor.
+            if (panelAccepted) setPanelAccepted(false);
+
+            const { issuesByLine, missingPoints } = lintCode(rawText);
+
+            // Escape HTML first so nothing user-typed is interpreted as markup
+            const escaped = rawText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+            const lines = escaped.split("\n");
+            const outputLines = lines.map((line, idx) => {
+                let content;
+                // Comment lines: "C" as its own token, e.g. "12990 C ---- header ----"
+                if (/\bC\s/.test(line) || /^\d+\s+C\b/.test(line)) {
+                    content = `<span class="syn-comment">${line}</span>`;
+                } else {
+                    content = line.replace(TOKEN_RE, (...args) => {
+                        const groups = args[args.length - 1];
+                        if (groups.point) return `<span class="syn-point">${groups.point}</span>`;
+                        if (groups.op) return `<span class="syn-op">${groups.op}</span>`;
+                        if (groups.kw) return `<span class="syn-cond">${groups.kw}</span>`;
+                        if (groups.cmd) return `<span class="syn-cond">${groups.cmd}</span>`;
+                        if (groups.val) return `<span class="syn-action">${groups.val}</span>`;
+                        if (groups.loc) return `<span class="syn-point">${groups.loc}</span>`;
+                        return args[0];
+                    });
+                }
+                if (content === "") content = "&nbsp;";
+
+                const issues = issuesByLine[idx];
+                let lineClass = "code-line";
+                if (issues && issues.length) {
+                    lineClass += issues.some(i => i.severity === "error") ? " line-error" : " line-warning";
+                }
+                return `<div class="${lineClass}">${content}</div>`;
+            });
+
+            highlight.innerHTML = outputLines.join("");
+            renderIssuesPanel(issuesByLine);
+            renderNotUsedPanel(missingPoints);
+        }
+
+        // --- AUTO LINE NUMBERING ---
+        // Starts at 01000 and increments by 10 (01000, 01010, 01020 ...),
+        // mirroring real APOGEE field panel program numbering (5-digit,
+        // zero-padded).
+        const START_LINE_NUM = 1000;
+        const LINE_NUM_STEP = 10;
+
+        function formatLineNumber(n) {
+            return n < 100000 ? String(n).padStart(5, "0") : String(n);
+        }
+
+        function handleEditorKeydown(e) {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+
+            const editor = e.target;
+            const value = editor.value;
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+
+            const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+            const currentLine = value.slice(lineStart, start);
+
+            let nextNum = START_LINE_NUM;
+            const m = currentLine.match(/^\s*(\d+)/);
+            if (m) {
+                nextNum = parseInt(m[1], 10) + LINE_NUM_STEP;
+            } else {
+                const before = value.slice(0, lineStart).split("\n").reverse();
+                for (const priorLine of before) {
+                    const pm = priorLine.match(/^\s*(\d+)/);
+                    if (pm) {
+                        nextNum = parseInt(pm[1], 10) + LINE_NUM_STEP;
+                        break;
+                    }
+                }
+            }
+
+            const insertion = "\n" + formatLineNumber(nextNum) + " ";
+            editor.value = value.slice(0, start) + insertion + value.slice(end);
+            const newPos = start + insertion.length;
+            editor.selectionStart = editor.selectionEnd = newPos;
+
+            lintAndHighlight();
+            updateStatusLine();
+        }
+
+        // Resets the buffer to a single blank numbered line (01000). Used on
+        // page load, "Clear Code", and whenever a new scenario is generated.
+        // When a headerLabel is given (a freshly generated write-mode
+        // scenario), auto-inserts a real-PPCL-style section comment above
+        // the blank line, e.g. "01000 C --- AHU01 DAMPER FAULT ALARM
+        // PROGRAM ---", the way an actual field panel program would open --
+        // this is just a label, not logic, so it doesn't give away the
+        // answer.
+        function resetEditorToBlankSlate(headerLabel) {
+            const editor = document.getElementById("codeEditor");
+            let nextNum = START_LINE_NUM;
+            let text = "";
+            if (headerLabel) {
+                text += formatLineNumber(nextNum) + ` C --- ${headerLabel.toUpperCase()} PROGRAM ---\n`;
+                nextNum += LINE_NUM_STEP;
+            }
+            text += formatLineNumber(nextNum) + " ";
+            editor.value = text;
+            editor.selectionStart = editor.selectionEnd = editor.value.length;
+            lintAndHighlight();
+            updateStatusLine();
+        }
+
+        function seedFirstLineNumber() {
+            const editor = document.getElementById("codeEditor");
+            if (editor.value === "") {
+                resetEditorToBlankSlate();
+                editor.focus();
+            }
+        }
+
+        function syncScroll() {
+            const editor = document.getElementById("codeEditor");
+            const highlight = document.getElementById("highlightArea");
+            highlight.scrollTop = editor.scrollTop;
+            highlight.scrollLeft = editor.scrollLeft;
+        }
+
+        function updateStatusLine() {
+            const editor = document.getElementById("codeEditor");
+            const upToCursor = editor.value.substring(0, editor.selectionStart);
+            const line = upToCursor.split("\n").length;
+            document.getElementById("statusLine").textContent = line;
+        }
+
+        // --- TOOLBAR ACTIONS ---
+        function newProgram() {
+            const editor = document.getElementById("codeEditor");
+            if (editor.value.trim() && !confirm("Clear the current program buffer?")) return;
+            // Keep the current scenario's section header if one is loaded
+            // (write mode only -- edit mode's buffer holds the given starter
+            // code, not a blank-slate header).
+            const label = (currentMode === "write" && currentScenario) ? currentScenario.title : undefined;
+            resetEditorToBlankSlate(label);
+            editor.focus();
+        }
+
+        function saveProgram() {
+            const code = document.getElementById("codeEditor").value;
+            const blob = new Blob([code], { type: "text/plain" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "PROGRAM.PPCL";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function setEditorFontSize(px) {
+            document.getElementById("codeEditor").style.fontSize = px + "px";
+            document.getElementById("highlightArea").style.fontSize = px + "px";
+        }
+
+        const DIFFICULTY_BADGE = {
+            easy: `<span style="color:#34d399; font-weight:bold;">🟢 BEGINNER</span>`,
+            medium: `<span style="color:#fbbf24; font-weight:bold;">🟡 INTERMEDIATE</span>`,
+            expert: `<span style="color:#f87171; font-weight:bold;">🔴 EXPERT</span>`
+        };
+        const MULTILINE_BADGE = `<span style="color:#38bdf8; font-weight:bold;"> · 📝 MULTI-LINE</span>`;
+
+        async function loadScenario(overrideDifficulty) {
+            const btn = document.getElementById("genScenarioBtn");
+            const promptBox = document.getElementById("promptBox");
+            const difficulty = overrideDifficulty !== undefined
+                ? overrideDifficulty
+                : document.getElementById("difficultySelect").value;
+            const originalLabel = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner"></span>Generating...`;
+            promptBox.innerHTML = `<span style="color:#64748b;">Loading sequence...</span>`;
+
+            // New scenario -- reset the hint ladder and hide any old hint.
+            hintLevel = 0;
+            resetNotUsedPanelCollapse();
+            const hintPanel = document.getElementById("hintPanel");
+            if (hintPanel) { hintPanel.style.display = "none"; hintPanel.innerHTML = ""; }
+
+            const endpoint = currentMode === "edit" ? "/api/get-edit-scenario" : "/api/get-scenario";
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ difficulty, equipment: equipmentFocus })
+                });
+                if (!res.ok) throw new Error(`Server returned ${res.status}`);
+                const data = await res.json();
+                activePoints = [...data.points];
+                setPanelAccepted(false);
+                renderForceValuesPanel();
+
+                const badge = DIFFICULTY_BADGE[data.difficulty] || "";
+
+                if (currentMode === "edit") {
+                    // Grading/linting reads currentScenario.prompt -- point it at the
+                    // CHANGED requirement, since that's what the edited code must satisfy.
+                    currentScenario = { ...data, prompt: data.changed_prompt };
+                    promptBox.innerHTML = `${badge}<br><strong>${data.title}</strong>` +
+                        `<div style="margin-top:8px; color:#94a3b8;"><em>Original requirement (context -- this is what the starter code below already does):</em><br>${data.original_prompt}</div>` +
+                        `<div style="margin-top:10px; padding:8px; background:#3a1f0a55; border-left:3px solid #f59e0b; border-radius:2px;">` +
+                        `<strong style="color:#f59e0b;">⚠ CHANGE REQUIRED -- edit the code below to comply:</strong><br>${data.changed_prompt}</div>`;
+                    document.getElementById("statusPointCount").textContent = activePoints.length;
+                    // Edit mode starts from the given starter code, NOT a blank
+                    // slate -- but real PPCL programs always open with a header
+                    // comment naming the program, so auto-compile one here too,
+                    // the same way a fresh Write New Code buffer gets one. It's
+                    // numbered just below the starter code's own first line so
+                    // it can never collide with (or force renumbering of) any
+                    // GOTO/GOSUB targets already baked into that starter code.
+                    const editor = document.getElementById("codeEditor");
+                    const headerNum = START_LINE_NUM - LINE_NUM_STEP;
+                    editor.value = formatLineNumber(headerNum) + ` C --- ${data.title.toUpperCase()} PROGRAM ---\n` + data.starter_code;
+                    lintAndHighlight();
+                    updateStatusLine();
+                } else {
+                    currentScenario = data;
+                    const mlBadge = data.multiLine ? MULTILINE_BADGE : "";
+                    promptBox.innerHTML = `${badge}${mlBadge}<br><strong>${data.title}:</strong><br>${data.prompt}`;
+                    document.getElementById("statusPointCount").textContent = activePoints.length;
+                    // Fresh sequence, fresh buffer -- clear whatever was written for the last one.
+                    resetEditorToBlankSlate(data.title);
+                }
+            } catch (err) {
+                promptBox.innerHTML = `<span style="color:#f87171;">Failed to load scenario: ${err.message}. Try again.</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalLabel;
+            }
+        }
+
+        async function gradeCode() {
+            const code = document.getElementById("codeEditor").value;
+            const output = document.getElementById("feedbackOutput");
+            const btn = document.getElementById("gradeBtn");
+
+            if (!currentScenario) {
+                output.innerHTML = `<span style="color: #f87171;">No scenario loaded yet. Go to the Program Editor tab and click "Generate Random Scenario" first.</span>`;
+                switchTab("diagnostics");
+                return;
+            }
+            if (!code.trim()) {
+                output.innerHTML = `<span style="color: #f87171;">Write some PPCL code before auditing.</span>`;
+                switchTab("diagnostics");
+                return;
+            }
+
+            const originalLabel = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner"></span>Auditing...`;
+            output.innerHTML = `<span style="color: #38bdf8;">[COMPILER] Auditing field program lines...<br>[AI INSPECTOR] Verifying quotes, syntax colors, and point names...</span>`;
+
+            try {
+                const res = await fetch("/api/grade", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        code,
+                        prompt: currentScenario.prompt,
+                        points: activePoints
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok || data.error) {
+                    output.innerHTML = `<span style="color: #f87171;">[COMPILER ERROR]: ${data.error || `Server returned ${res.status}`}</span>`;
+                    return;
+                }
+
+                renderFeedback(output, data.feedback);
+            } catch (err) {
+                output.innerHTML = `<span style="color: #f87171;">[CONNECTION ERROR]: Could not reach the server (${err.message}). Check your connection and try again.</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalLabel;
+            }
+        }
+
+        function renderFeedback(output, feedbackText) {
+            // Pull out a score like "Score: 85%" or "Score: 85/100" if present
+            const scoreMatch = feedbackText.match(/score[:\s]*([0-9]{1,3})\s*(?:%|\/\s*100)?/i);
+            let scoreHtml = "";
+            if (scoreMatch) {
+                const score = Math.min(100, parseInt(scoreMatch[1], 10));
+                const cls = score >= 80 ? "score-good" : score >= 50 ? "score-mid" : "score-bad";
+                scoreHtml = `
+          <div class="score-badge-wrap">
+            <div class="score-circle ${cls}">${score}%</div>
+            <div style="color:#94a3b8; font-size:12px;">Overall field engineering score</div>
+          </div>`;
+            }
+
+            let formatted = feedbackText
+                .replace(/\n/g, "<br>")
+                .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+            output.innerHTML =
+                `<div style="color: #34d399; font-weight: bold; margin-bottom: 8px;">[FIELD DIAGNOSTIC COMPLETE]:</div>` +
+                scoreHtml + formatted;
+        }
+
+        // Progressive hint ladder: level 1 = gentle nudge (no code), level 2 =
+        // names the construct needed, level 3 = a short worked example using a
+        // stand-in point name. Each click of the Hint button goes one level
+        // deeper (up to 3); a new scenario resets it back to 0.
+        const HINT_LEVEL_LABEL = {
+            1: "💡 Hint 1 of 3 (nudge)",
+            2: "💡 Hint 2 of 3 (approach)",
+            3: "💡 Hint 3 of 3 (worked example)"
+        };
+
+        async function getHint() {
+            const panel = document.getElementById("hintPanel");
+            const btn = document.getElementById("hintBtn");
+
+            if (!currentScenario) {
+                panel.style.display = "block";
+                panel.innerHTML = `<span style="color:#f87171;">No scenario loaded yet. Click "Generate Scenario" first.</span>`;
+                return;
+            }
+            if (hintLevel >= 3) {
+                panel.style.display = "block";
+                return; // already showing the deepest hint available
+            }
+
+            const nextLevel = hintLevel + 1;
+            const code = document.getElementById("codeEditor").value;
+
+            const originalLabel = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner"></span>Thinking...`;
+            panel.style.display = "block";
+            panel.innerHTML = `<span style="color:#94a3b8;">Working out a hint...</span>`;
+
+            try {
+                const res = await fetch("/api/hint", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        code,
+                        prompt: currentScenario.prompt,
+                        points: activePoints,
+                        hintLevel: nextLevel
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok || data.error) {
+                    panel.innerHTML = `<span style="color:#f87171;">${data.error || `Server returned ${res.status}`}</span>`;
+                    return;
+                }
+
+                hintLevel = data.hintLevel || nextLevel;
+                const formatted = data.hint.replace(/\n/g, "<br>").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+                const label = HINT_LEVEL_LABEL[hintLevel] || "💡 Hint";
+                const more = hintLevel < 3
+                    ? `<div style="margin-top:8px;"><button onclick="getHint()" class="btn-gen" style="width:auto; padding:4px 10px; font-size:12px;">Still stuck? Get a deeper hint →</button></div>`
+                    : `<div style="margin-top:8px; color:#64748b; font-size:12px;">That's the deepest hint available -- give it a shot, then use Compile &amp; Audit for full feedback.</div>`;
+                panel.innerHTML = `<strong style="color:#fbbf24;">${label}</strong><div style="margin-top:6px;">${formatted}</div>${more}`;
+            } catch (err) {
+                panel.innerHTML = `<span style="color:#f87171;">Could not reach the server (${err.message}).</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalLabel;
+            }
+        }
+
+        // --- POINT TYPE REFERENCE (single clickable list) ---
+        // One flat list of the panel's point-type codes; clicking a chip
+        // shows a short, realistic snippet of that type actually being used,
+        // instead of the old two-tier "most common / less common" split.
+        const POINT_TYPE_REFERENCE = [
+            {
+                code: "LAI", meaning: "AI (Analog Input)",
+                example: `A sensor reading, e.g. Discharge Air Temp:<br><code>"%X%AHU01.DAT"</code><br><br>` +
+                    `<code>01000 IF ("%X%AHU01.DAT" .GT. "%X%AHU01.DAT.HI") THEN ON ("%X%AHU01.DAT.ALM") ELSE OFF ("%X%AHU01.DAT.ALM")</code>`
+            },
+            {
+                code: "LAO", meaning: "AO (Analog Output)",
+                example: `A modulating output, e.g. a cooling tower fan speed command:<br><code>"%X%CT01.FAN.SPD"</code><br><br>` +
+                    `<code>01000 IF ("%X%CT01.CWS.T" .GT. "%X%CT01.CWS.T.HI") THEN SET(100,"%X%CT01.FAN.SPD") ELSE SET(0,"%X%CT01.FAN.SPD")</code>`
+            },
+            {
+                code: "LDI", meaning: "DI (single digital input)",
+                example: `A single status or proof point read from the field, e.g. a filter status switch:<br><code>"%X%MAU01.FLT.STAT"</code><br><br>` +
+                    `<code>01000 IF ("%X%MAU01.FLT.STAT" .EQ. OFF) THEN OFF ("%X%MAU01.HTG.VLV")</code>`
+            },
+            {
+                code: "LDO", meaning: "DO (single on/off command)",
+                example: `A single enable/disable command, e.g. a chiller enable:<br><code>"%X%CHLR.CH1.ENA"</code><br><br>` +
+                    `<code>01000 IF ("%X%CHLR.LEAD.FLT" .EQ. ON) THEN SET(0,"%X%CHLR.CH1.ENA") ELSE SET(1,"%X%CHLR.CH1.ENA")</code>`
+            },
+            {
+                code: "L2SL", meaning: "DO (ON/OFF) + DI (PROOF)",
+                example: `A start/stop command paired with a status/proof point, e.g. an exhaust fan:<br>` +
+                    `<code>"%X%EF01.EF.SS"</code> (command) + <code>"%X%EF01.LVR.POS"</code> (proof)<br><br>` +
+                    `<code>01000 IF ("%X%EF01.EF.SS" .EQ. ON .AND. "%X%EF01.LVR.POS" .EQ. OFF) THEN ON ("%X%EF01.EF.ALM") ELSE OFF ("%X%EF01.EF.ALM")</code>`
+            },
+            {
+                code: "LFSSL", meaning: "DO (OFF/FAST) + DO (OFF/SLOW) + DI (PROOF)",
+                example: `A two-speed fan relay, e.g. an FCU fan's High/Low speed taps:<br>` +
+                    `<code>"%X%FCU101.FAN.HI"</code> + <code>"%X%FCU101.FAN.LO"</code><br><br>` +
+                    `<code>01000 IF ("%X%FCU101.RMT" .GT. "%X%FCU101.RMT.SP") THEN ON ("%X%FCU101.FAN.HI") ELSE OFF ("%X%FCU101.FAN.HI")</code>`
+            },
+            {
+                code: "LOOAP", meaning: "DO (ON) + DO (OFF) + DO (AUTO) + DI (PROOF)",
+                example: `A three-position hand/off/auto style output with a separate proof point, e.g. a pump's control mode -- the program only ever drives the ON/OFF/AUTO command points; the operator's physical hand switch and the proof point come back separately.`
+            },
+            {
+                code: "LOOAL", meaning: "DO (ON/OFF) + DO (AUTO) + DI (PROOF)",
+                example: `Similar to LOOAP, but ON/OFF share a single command point instead of two separate ones -- still paired with an AUTO point and a proof point.`
+            },
+            {
+                code: "LPACI", meaning: "DI (COUNT/PULSE)",
+                example: `A pulse-counting input, e.g. a flow meter's pulse output feeding a totalizer:<br><code>"%X%CHWP01.FLOW.PLS"</code>`
+            },
+            {
+                code: "L2SP", meaning: "DO (ON) + DO (OFF) + DI (PROOF)",
+                example: `A pulsed start/stop pair (separate momentary ON and OFF commands) with a status/proof point -- common on motor starters that need a momentary pulse rather than a maintained contact.`
+            }
+        ];
+
+        function renderPointTypeList() {
+            const list = document.getElementById("pointTypeList");
+            if (!list) return;
+            list.innerHTML = POINT_TYPE_REFERENCE.map(t =>
+                `<button type="button" class="point-type-chip" data-code="${t.code}" onclick="showPointTypeExample('${t.code}')">${t.code}</button>`
+            ).join("");
+        }
+
+        function showPointTypeExample(code) {
+            const entry = POINT_TYPE_REFERENCE.find(t => t.code === code);
+            const exampleBox = document.getElementById("pointTypeExample");
+            if (!entry || !exampleBox) return;
+
+            document.querySelectorAll(".point-type-chip").forEach(chip =>
+                chip.classList.toggle("active", chip.dataset.code === code));
+
+            exampleBox.style.display = "block";
+            exampleBox.innerHTML = `<strong>${entry.code}</strong> = ${entry.meaning}<div style="margin-top:6px;">${entry.example}</div>`;
+        }
+
+        // --- HOVER TOOLTIP: point type + last simulated value ---
+        // The visible code is an overlay of two absolutely-positioned
+        // elements: the real <textarea> on top (so typing/selection work)
+        // and a read-only, syntax-highlighted mirror div underneath. The
+        // mirror has real <span> elements per token but the textarea always
+        // owns mouse hit-testing since it's on top -- so on every mousemove
+        // we briefly disable the textarea's pointer-events, ask the browser
+        // what's actually under the cursor (falls through to the mirror's
+        // spans), then restore it. This is a standard technique for this
+        // kind of dual-layer editor and doesn't affect typing or selection.
+        function initPointTooltip() {
+            const editor = document.getElementById("codeEditor");
+            const tooltip = document.getElementById("pointTooltip");
+            if (!editor || !tooltip) return;
+
+            editor.addEventListener("mousemove", (e) => {
+                const prevPE = editor.style.pointerEvents;
+                editor.style.pointerEvents = "none";
+                const el = document.elementFromPoint(e.clientX, e.clientY);
+                editor.style.pointerEvents = prevPE || "";
+
+                const span = el && el.closest ? el.closest(".syn-point") : null;
+                const text = span ? span.textContent : "";
+                if (!span || !text.startsWith('"') || !text.includes("%")) {
+                    tooltip.style.display = "none";
+                    return;
+                }
+
+                const name = text.slice(1, -1);
+                const pt = activePoints.find(p => p.name === name);
+                if (!pt) {
+                    tooltip.style.display = "none";
+                    return;
+                }
+
+                const hasLive = lastSimSnapshot && Object.prototype.hasOwnProperty.call(lastSimSnapshot, name);
+                tooltip.innerHTML =
+                    `<strong style="color:#38bdf8;">"${pt.name}"</strong><br>` +
+                    `<span style="color:#94a3b8;">Type: ${pt.type}${pt.kind ? " · " + pt.kind : ""}</span><br>` +
+                    `<span>${pt.desc}</span>` +
+                    (hasLive
+                        ? `<br><span style="color:#34d399;">Last simulated value: ${formatPointValue(pt, lastSimSnapshot[name])}</span>`
+                        : `<br><span style="color:#64748b;">Not simulated yet -- run the Simulator or Save to Panel.</span>`);
+                tooltip.style.display = "block";
+                tooltip.style.left = (e.clientX + 16) + "px";
+                tooltip.style.top = (e.clientY + 16) + "px";
+            });
+
+            editor.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+        }
+
+        // --- SAVE TO PANEL ---
+        // Mimics uploading a program to a real field panel: the panel only
+        // reports pass/fail at upload time (not as you type), rejects the
+        // program outright on any syntax error, and otherwise loads it and
+        // runs it, showing the live values it settles on -- same engine as
+        // the Simulator tab, just gated behind a compile check first and
+        // framed as an authoritative "did the panel accept this" moment.
+        function saveToPanel() {
+            const code = document.getElementById("codeEditor").value;
+            const resultDiv = document.getElementById("savePanelResult");
+            const btn = document.getElementById("saveToPanelBtn");
+
+            resultDiv.style.display = "block";
+
+            if (!code.trim()) {
+                resultDiv.innerHTML = `<div class="sim-error-box">Write some PPCL code before saving to the panel.</div>`;
+                return;
+            }
+
+            const { issuesByLine } = lintCode(code);
+            const errorMessages = [];
+            Object.entries(issuesByLine)
+                .sort((a, b) => Number(a[0]) - Number(b[0]))
+                .forEach(([idx, issues]) => {
+                    issues.filter(i => i.severity === "error").forEach(i => {
+                        errorMessages.push(`Line ${Number(idx) + 1}: ${i.message}`);
+                    });
+                });
+
+            if (errorMessages.length) {
+                resultDiv.innerHTML =
+                    `<div class="sim-error-box" style="background:#2a0f0f; border-color:#7f1d1d; color:#fca5a5;">` +
+                    `⛔ PANEL REJECTED -- ${errorMessages.length} syntax error${errorMessages.length !== 1 ? "s" : ""} found. Fix these and try again:</div>` +
+                    errorMessages.map(m => `<div class="sim-error-box">⚠ ${m}</div>`).join("");
+                return;
+            }
+
+            const originalLabel = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner"></span>Uploading...`;
+
+            // Small delay purely for feel -- mimics a real panel upload.
+            setTimeout(() => {
+                try {
+                    // Run once here purely as a compile/runtime-error check --
+                    // its point values are intentionally NOT shown and NOT
+                    // stored as lastSimSnapshot, since they'd use a different
+                    // random starting roll than the values "Run Simulation"
+                    // below produces and displays. Showing both would just
+                    // show two different numbers for the same point and
+                    // confuse the student about which one is real.
+                    const result = runSimulation(1, getForcedValues());
+
+                    if (result.runtimeErrors && result.runtimeErrors.length) {
+                        setPanelAccepted(false);
+                        resultDiv.innerHTML =
+                            `<div class="sim-error-box" style="background:#2a0f0f; border-color:#7f1d1d; color:#fca5a5;">` +
+                            `⛔ PANEL REJECTED -- syntax compiled, but the program failed at runtime:</div>` +
+                            result.runtimeErrors.map(m => `<div class="sim-error-box">⚠ ${m}</div>`).join("");
+                        return;
+                    }
+
+                    setPanelAccepted(true);
+                    resultDiv.innerHTML = `<div class="sim-error-box" style="background:#0a2a17; border-color:#166534; color:#86efac;">` +
+                        `✓ PANEL ACCEPTED -- program compiled clean and is now running. Click "Run Simulation" below to see live point values and a full execution trace.</div>`;
+                } catch (err) {
+                    setPanelAccepted(false);
+                    resultDiv.innerHTML = `<div class="sim-error-box">Panel crashed unexpectedly: ${err.message}</div>`;
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = originalLabel;
+                }
+            }, 400);
+        }
+
+        // ===================================================================
+        // PPCL SIMULATOR
+        // A small tokenizer + recursive-descent parser + interpreter for the
+        // PPCL subset this trainer teaches: IF/THEN/ELSE, SAMPLE(n), GOSUB/
+        // RETURN, GOTO, ON()/OFF()/SET(), assignment, arithmetic (+ - * /),
+        // and .EQ./.GT./.LT./.GE./.LE./.NE./.AND./.OR. LOOP (PID) statements
+        // are recognized syntactically but not numerically simulated.
+        //
+        // Execution model: the program runs top-to-bottom once per "scan
+        // cycle" (1 cycle == 1 simulated second, for SAMPLE(n) timing).
+        // GOSUB jumps to the target line and continues until RETURN, then
+        // resumes after the GOSUB call. A subroutine body (a GOSUB target
+        // through its matching RETURN) is skipped during normal top-to-
+        // bottom fallthrough and only runs when actually called -- matching
+        // how these blocks are used in the real field panel dumps. GOTO
+        // (bare or inside IF/THEN/ELSE) permanently redirects execution to
+        // the target line for the rest of the pass -- no return address is
+        // kept, matching real safety-first decision-tree dispatch (check
+        // trips, then GOTO the block for the current mode).
+        // ===================================================================
+
+        const SIM_MAX_STEPS_PER_CYCLE = 500;
+
+        // Binary points (DI/DO/BV) are stored as raw 0/1 internally, but a
+        // real panel never shows a technician a bare "1" -- it shows the
+        // point's actual state. Valves and dampers read OPEN/CLOSED; every
+        // other binary point (fans, enables, alarms, switches) reads ON/OFF.
+        // Matches only the TERMINAL segment of a point name that actually
+        // represents a damper/valve/louver position or command -- e.g.
+        // "...CLG.VLV", "...OAD.CMD", "...OAD.S", "...LVR.POS". Deliberately
+        // anchored to the end of the string (not a loose substring test) so
+        // that something like "...OAD.ALM" or "...OAD.ALM.RST" -- an alarm
+        // or reset point that merely happens to live under the same "OAD"
+        // prefix as the damper -- is NOT caught by this and correctly shows
+        // ON/OFF instead of OPEN/CLOSED.
+        const DAMPER_VALVE_RE = /\.(VLV\d*|DMP|DAD|DAMPER|POS)$|\.OAD\.(CMD|S)$/i;
+        function formatPointValue(point, rawValue) {
+            if (!point || !["DI", "DO", "BV"].includes(point.type)) return rawValue;
+            const isOn = Number(rawValue) === 1;
+            if (DAMPER_VALVE_RE.test(point.name)) return isOn ? "OPEN" : "CLOSED";
+            return isOn ? "ON" : "OFF";
+        }
+
+        function simTokenize(line) {
+            const tokens = [];
+            let i = 0;
+            const n = line.length;
+            while (i < n) {
+                const c = line[i];
+                if (/\s/.test(c)) { i++; continue; }
+                if (c === '"') {
+                    let j = i + 1;
+                    while (j < n && line[j] !== '"') j++;
+                    tokens.push({ type: "POINT", value: line.slice(i + 1, j) });
+                    i = (j < n) ? j + 1 : j;
+                    continue;
+                }
+                if (c === '.') {
+                    const m = line.slice(i).match(/^\.(EQ|GT|LT|GE|LE|NE|AND|OR)\./);
+                    if (m) {
+                        tokens.push({ type: "OP", value: m[1] });
+                        i += m[0].length;
+                        continue;
+                    }
+                    tokens.push({ type: "UNKNOWN", value: "." });
+                    i++;
+                    continue;
+                }
+                if (/[0-9]/.test(c)) {
+                    let j = i;
+                    while (j < n && /[0-9.]/.test(line[j])) j++;
+                    tokens.push({ type: "NUMBER", value: parseFloat(line.slice(i, j)) });
+                    i = j;
+                    continue;
+                }
+                if (c === "$") {
+                    let j = i + 1;
+                    while (j < n && /[A-Za-z0-9]/.test(line[j])) j++;
+                    tokens.push({ type: "LOCAL", value: line.slice(i, j) });
+                    i = j;
+                    continue;
+                }
+                if (/[A-Za-z%]/.test(c)) {
+                    let j = i;
+                    while (j < n && /[A-Za-z0-9]/.test(line[j])) j++;
+                    tokens.push({ type: "KEYWORD", value: line.slice(i, j).toUpperCase() });
+                    i = j;
+                    continue;
+                }
+                if ("()+-*/=,".includes(c)) {
+                    tokens.push({ type: c, value: c });
+                    i++;
+                    continue;
+                }
+                tokens.push({ type: "UNKNOWN", value: c });
+                i++;
+            }
+            tokens.push({ type: "EOF", value: null });
+            return tokens;
+        }
+
+        function simParseStatement(tokens) {
+            let pos = 0;
+            const peek = () => tokens[pos];
+            const next = () => tokens[pos++];
+            const expect = (type) => {
+                const t = peek();
+                if (t.type !== type) throw new Error(`Expected "${type}" but found "${t.value ?? t.type}"`);
+                return next();
+            };
+            const atKeyword = (word) => peek().type === "KEYWORD" && peek().value === word;
+
+            function parseFactor() {
+                const t = peek();
+                if (t.type === "(") { next(); const e = parseArith(); expect(")"); return e; }
+                if (t.type === "-") { next(); return { type: "neg", value: parseFactor() }; }
+                if (t.type === "NUMBER") { next(); return { type: "num", value: t.value }; }
+                if (t.type === "POINT") { next(); return { type: "point", value: t.value }; }
+                if (t.type === "LOCAL") { next(); return { type: "local", value: t.value }; }
+                if (t.type === "KEYWORD" && (t.value === "ON" || t.value === "OFF")) {
+                    next();
+                    return { type: "num", value: t.value === "ON" ? 1 : 0 };
+                }
+                throw new Error(`Unexpected token in expression: "${t.value ?? t.type}"`);
+            }
+
+            function parseTerm() {
+                let left = parseFactor();
+                while (peek().type === "*" || peek().type === "/") {
+                    const op = next().type;
+                    left = { type: "binop", op, left, right: parseFactor() };
+                }
+                return left;
+            }
+
+            function parseArith() {
+                let left = parseTerm();
+                while (peek().type === "+" || peek().type === "-") {
+                    const op = next().type;
+                    left = { type: "binop", op, left, right: parseTerm() };
+                }
+                return left;
+            }
+
+            function parseComparison() {
+                const left = parseArith();
+                const t = peek();
+                if (t.type === "OP" && ["EQ", "GT", "LT", "GE", "LE", "NE"].includes(t.value)) {
+                    next();
+                    return { type: "cmp", op: t.value, left, right: parseArith() };
+                }
+                throw new Error(`Expected a comparison operator (.EQ. .GT. etc), found "${t.value ?? t.type}"`);
+            }
+
+            function parsePrimaryCond() {
+                if (peek().type === "(") { next(); const c = parseCondition(); expect(")"); return c; }
+                return parseComparison();
+            }
+
+            function parseAndExpr() {
+                let left = parsePrimaryCond();
+                while (peek().type === "OP" && peek().value === "AND") {
+                    next();
+                    left = { type: "and", left, right: parsePrimaryCond() };
+                }
+                return left;
+            }
+
+            function parseCondition() {
+                let left = parseAndExpr();
+                while (peek().type === "OP" && peek().value === "OR") {
+                    next();
+                    left = { type: "or", left, right: parseAndExpr() };
+                }
+                return left;
+            }
+
+            function parsePoint() {
+                const t = peek();
+                if (t.type === "POINT") { next(); return { type: "point", value: t.value }; }
+                if (t.type === "LOCAL") { next(); return { type: "local", value: t.value }; }
+                throw new Error(`Expected a point name in quotes, found "${t.value ?? t.type}"`);
+            }
+
+            function parsePointList() {
+                const points = [parsePoint()];
+                while (peek().type === ",") { next(); points.push(parsePoint()); }
+                return points;
+            }
+
+            function parseAction() {
+                // A THEN/ELSE branch can itself carry a leading SAMPLE(n)
+                // qualifier -- e.g. "THEN SAMPLE(1) \"%X%A.TMR\" = ... + 1" --
+                // meaning "only take this specific action once every n
+                // cycles," independent of how often the IF condition itself
+                // is evaluated. Consume it here and tag it onto the action
+                // node so the executor can gate on it.
+                if (atKeyword("SAMPLE")) {
+                    next();
+                    expect("(");
+                    const interval = parseArith();
+                    expect(")");
+                    const inner = parseAction();
+                    inner.sampleInterval = interval;
+                    return inner;
+                }
+                const t = peek();
+                if (t.type === "KEYWORD" && (t.value === "ON" || t.value === "OFF")) {
+                    const cmd = next().value;
+                    expect("(");
+                    const targets = parsePointList();
+                    expect(")");
+                    return { type: "onoff", cmd, targets };
+                }
+                if (t.type === "KEYWORD" && t.value === "SET") {
+                    next();
+                    expect("(");
+                    const valueExpr = parseArith();
+                    expect(",");
+                    const targets = parsePointList();
+                    expect(")");
+                    return { type: "set", valueExpr, targets };
+                }
+                if (t.type === "KEYWORD" && t.value === "LOOP") {
+                    while (peek().type !== "EOF") next();
+                    return { type: "loop" };
+                }
+                if (t.type === "KEYWORD" && t.value === "GOTO") {
+                    next();
+                    const target = expect("NUMBER").value;
+                    return { type: "goto", target };
+                }
+                if (t.type === "POINT" || t.type === "LOCAL") {
+                    const target = parsePoint();
+                    expect("=");
+                    return { type: "assign", target, valueExpr: parseArith() };
+                }
+                throw new Error(`Don't know how to execute action starting with "${t.value ?? t.type}"`);
+            }
+
+            // Real PPCL allows several commands to fire off one THEN/ELSE,
+            // separated by commas, e.g.
+            // "THEN ON(\"A\"), ON(\"B\")" or "THEN ON(\"A\"), OFF(\"B\")".
+            // Each comma-separated piece is a full, independent command (its
+            // own ON/OFF/SET/assignment, optionally with its own leading
+            // SAMPLE(n)) -- not a shared point list inside one call.
+            function parseActionList() {
+                const actions = [parseAction()];
+                while (peek().type === ",") {
+                    next();
+                    actions.push(parseAction());
+                }
+                return actions.length === 1 ? actions[0] : { type: "seq", actions };
+            }
+
+            let sampleInterval = null;
+            if (atKeyword("SAMPLE")) {
+                next();
+                expect("(");
+                sampleInterval = parseArith();
+                expect(")");
+            }
+
+            if (atKeyword("IF")) {
+                next();
+                expect("(");
+                const cond = parseCondition();
+                expect(")");
+                if (!atKeyword("THEN")) throw new Error(`Expected THEN after the IF condition`);
+                next();
+                const thenAction = parseActionList();
+                let elseAction = null;
+                if (atKeyword("ELSE")) { next(); elseAction = parseActionList(); }
+                return { type: "if", sampleInterval, cond, thenAction, elseAction };
+            }
+
+            if (atKeyword("GOSUB")) {
+                next();
+                const t = expect("NUMBER");
+                return { type: "gosub", target: t.value };
+            }
+
+            if (atKeyword("RETURN")) {
+                next();
+                return { type: "return" };
+            }
+
+            return { type: "action", sampleInterval, action: parseActionList() };
+        }
+
+        function simEvalExpr(node, ctx) {
+            switch (node.type) {
+                case "num": return node.value;
+                case "neg": return -simEvalExpr(node.value, ctx);
+                case "point":
+                case "local": return simGetPoint(node.value, ctx);
+                case "binop": {
+                    const l = simEvalExpr(node.left, ctx);
+                    const r = simEvalExpr(node.right, ctx);
+                    if (node.op === "+") return l + r;
+                    if (node.op === "-") return l - r;
+                    if (node.op === "*") return l * r;
+                    if (node.op === "/") {
+                        if (r === 0) { ctx.errors.push("Division by zero"); return 0; }
+                        return l / r;
+                    }
+                    break;
+                }
+            }
+            throw new Error("Internal error: unknown expression node " + node.type);
+        }
+
+        function simGetPoint(name, ctx) {
+            if (ctx.pointTable.has(name)) return ctx.pointTable.get(name);
+            ctx.pointTable.set(name, 0);
+            ctx.undeclared.add(name);
+            return 0;
+        }
+
+        function simEvalCond(node, ctx) {
+            if (node.type === "cmp") {
+                const l = simEvalExpr(node.left, ctx);
+                const r = simEvalExpr(node.right, ctx);
+                switch (node.op) {
+                    case "EQ": return l === r;
+                    case "NE": return l !== r;
+                    case "GT": return l > r;
+                    case "LT": return l < r;
+                    case "GE": return l >= r;
+                    case "LE": return l <= r;
+                }
+            }
+            if (node.type === "and") return simEvalCond(node.left, ctx) && simEvalCond(node.right, ctx);
+            if (node.type === "or") return simEvalCond(node.left, ctx) || simEvalCond(node.right, ctx);
+            throw new Error("Internal error: unknown condition node " + node.type);
+        }
+
+        function simExecAction(action, ctx, trace, cycleNum) {
+            if (!action) return null;
+            if (action.sampleInterval != null) {
+                const nCyc = simEvalExpr(action.sampleInterval, ctx);
+                if (nCyc > 0 && (cycleNum - 1) % nCyc !== 0) {
+                    trace.push(`    -> SAMPLE(${nCyc}) not due this cycle -- action skipped`);
+                    return null;
+                }
+            }
+            if (action.type === "onoff") {
+                const val = action.cmd === "ON" ? 1 : 0;
+                action.targets.forEach(t => {
+                    ctx.pointTable.set(t.value, val);
+                    trace.push(`    -> ${action.cmd}("${t.value}")`);
+                });
+            } else if (action.type === "set") {
+                const val = simEvalExpr(action.valueExpr, ctx);
+                action.targets.forEach(t => {
+                    ctx.pointTable.set(t.value, val);
+                    trace.push(`    -> SET "${t.value}" = ${val}`);
+                });
+            } else if (action.type === "assign") {
+                const val = simEvalExpr(action.valueExpr, ctx);
+                ctx.pointTable.set(action.target.value, val);
+                trace.push(`    -> "${action.target.value}" = ${val}`);
+            } else if (action.type === "loop") {
+                trace.push(`    -> LOOP recognized (PID/analog modulation not numerically simulated)`);
+            } else if (action.type === "goto") {
+                trace.push(`    -> GOTO ${action.target}`);
+                return { jump: action.target };
+            } else if (action.type === "seq") {
+                // Comma-chained commands off one THEN/ELSE -- run each in
+                // order. cycleNum is threaded through so a sub-action with
+                // its own SAMPLE(n) still gates correctly. A GOTO among them
+                // transfers control immediately -- anything chained after it
+                // never runs, matching how a real GOTO would abandon the
+                // rest of the line.
+                for (const sub of action.actions) {
+                    const signal = simExecAction(sub, ctx, trace, cycleNum);
+                    if (signal) return signal;
+                }
+            }
+            return null;
+        }
+
+        function simExecuteStatement(entry, stmt, ctx, trace, cycleNum) {
+            try {
+                if (stmt.type === "if") {
+                    if (stmt.sampleInterval != null) {
+                        const nCyc = simEvalExpr(stmt.sampleInterval, ctx);
+                        if (nCyc > 0 && (cycleNum - 1) % nCyc !== 0) {
+                            trace.push(`Line ${entry.lineNum}: SAMPLE(${nCyc}) not due this cycle -- skipped`);
+                            return null;
+                        }
+                    }
+                    const result = simEvalCond(stmt.cond, ctx);
+                    trace.push(`Line ${entry.lineNum}: IF (...) -> ${result ? "TRUE" : "FALSE"}`);
+                    if (result) return simExecAction(stmt.thenAction, ctx, trace, cycleNum);
+                    else if (stmt.elseAction) return simExecAction(stmt.elseAction, ctx, trace, cycleNum);
+                } else if (stmt.type === "action") {
+                    if (stmt.sampleInterval != null) {
+                        const nCyc = simEvalExpr(stmt.sampleInterval, ctx);
+                        if (nCyc > 0 && (cycleNum - 1) % nCyc !== 0) {
+                            trace.push(`Line ${entry.lineNum}: SAMPLE(${nCyc}) not due this cycle -- skipped`);
+                            return null;
+                        }
+                    }
+                    trace.push(`Line ${entry.lineNum}: action`);
+                    return simExecAction(stmt.action, ctx, trace, cycleNum);
+                }
+            } catch (err) {
+                ctx.errors.push(`Line ${entry.lineNum}: runtime error -- ${err.message}`);
+                trace.push(`Line ${entry.lineNum}: ⚠ ERROR -- ${err.message}`);
+            }
+            return null;
+        }
+
+        function simRunPass(statements, subroutineRanges, findIndexByLineNum, ctx, cycleNum, trace) {
+            let i = 0;
+            let justJumped = true;
+            const callStack = [];
+            const activeSubStack = [];
+            let steps = 0;
+
+            while (i < statements.length) {
+                if (!justJumped) {
+                    const enclosing = subroutineRanges.find(r => i >= r.start && i <= r.end);
+                    const activeTop = activeSubStack[activeSubStack.length - 1];
+                    if (enclosing && enclosing !== activeTop) { i = enclosing.end + 1; continue; }
+                    if (!enclosing && activeSubStack.length) activeSubStack.pop();
+                }
+                justJumped = false;
+                if (i >= statements.length) break;
+
+                steps++;
+                if (steps > SIM_MAX_STEPS_PER_CYCLE) {
+                    trace.push(`⚠ Stopped after ${SIM_MAX_STEPS_PER_CYCLE} steps this cycle -- likely an infinite GOSUB or GOTO loop.`);
+                    ctx.errors.push(`Cycle ${cycleNum}: exceeded step limit (possible infinite loop)`);
+                    break;
+                }
+
+                const entry = statements[i];
+                const stmt = entry.stmt;
+                if (!stmt || stmt.type === "comment") { i++; continue; }
+
+                if (stmt.type === "gosub") {
+                    const targetIdx = findIndexByLineNum(stmt.target);
+                    if (targetIdx == null) {
+                        trace.push(`Line ${entry.lineNum}: GOSUB ${stmt.target} -- target line not found`);
+                        ctx.errors.push(`GOSUB target line ${stmt.target} not found (called from line ${entry.lineNum})`);
+                        i++;
+                        continue;
+                    }
+                    trace.push(`Line ${entry.lineNum}: GOSUB ${stmt.target}`);
+                    callStack.push(i + 1);
+                    const enteredRange = subroutineRanges.find(r => r.start === targetIdx);
+                    if (enteredRange) activeSubStack.push(enteredRange);
+                    i = targetIdx;
+                    justJumped = true;
+                    continue;
+                }
+
+                if (stmt.type === "return") {
+                    trace.push(`Line ${entry.lineNum}: RETURN`);
+                    if (callStack.length === 0) {
+                        trace.push(`  (no active GOSUB call -- ending this cycle's pass here)`);
+                        break;
+                    }
+                    i = callStack.pop();
+                    activeSubStack.pop();
+                    justJumped = true;
+                    continue;
+                }
+
+                const signal = simExecuteStatement(entry, stmt, ctx, trace, cycleNum);
+                if (signal && signal.jump != null) {
+                    const targetIdx = findIndexByLineNum(signal.jump);
+                    if (targetIdx == null) {
+                        trace.push(`  GOTO ${signal.jump} -- target line not found`);
+                        ctx.errors.push(`GOTO target line ${signal.jump} not found (from line ${entry.lineNum})`);
+                        i++;
+                        continue;
+                    }
+                    i = targetIdx;
+                    justJumped = true;
+                    continue;
+                }
+                i++;
+            }
+        }
+
+        function runSimulation(cycles, forcedValues) {
+            const code = document.getElementById("codeEditor").value;
+            const lines = code.split("\n");
+            const statements = [];
+            const parseErrors = [];
+
+            lines.forEach((raw, idx) => {
+                const line = raw.trim();
+                if (!line) return;
+                const numMatch = line.match(/^(\d+)\b/);
+                if (!numMatch) { parseErrors.push(`Line ${idx + 1}: no leading line number -- skipped in simulation`); return; }
+                const lineNum = parseInt(numMatch[1], 10);
+
+                // Comment lines still occupy a line-number "slot" (real PPCL commonly
+                // uses a comment as a subroutine's label, e.g. "5000 C ---- SUB ----"
+                // with the real code starting at 5010). Keep them as no-op entries so
+                // GOSUB can resolve to them and fall straight through to what follows.
+                if (/\bC\s/.test(line) || /^\d+\s+C\b/.test(line)) {
+                    statements.push({ lineNum, raw: line, stmt: { type: "comment" } });
+                    return;
+                }
+
+                const rest = line.slice(numMatch[0].length).trim();
+                if (!rest) return;
+                try {
+                    const tokens = simTokenize(rest);
+                    const stmt = simParseStatement(tokens);
+                    statements.push({ lineNum, raw: line, stmt });
+                } catch (err) {
+                    parseErrors.push(`Line ${idx + 1} (${lineNum}): ${err.message}`);
+                    statements.push({ lineNum, raw: line, stmt: null });
+                }
+            });
+
+            const findIndexByLineNum = (n) => {
+                const idx = statements.findIndex(s => s.lineNum === n);
+                return idx === -1 ? null : idx;
+            };
+
+            const subroutineRanges = [];
+            const gosubTargets = new Set(
+                statements.filter(s => s.stmt && s.stmt.type === "gosub").map(s => s.stmt.target)
+            );
+            gosubTargets.forEach(target => {
+                const startIdx = findIndexByLineNum(target);
+                if (startIdx == null) return;
+                let endIdx = null;
+                for (let k = startIdx; k < statements.length; k++) {
+                    if (statements[k].stmt && statements[k].stmt.type === "return") { endIdx = k; break; }
+                }
+                if (endIdx == null) {
+                    parseErrors.push(`Subroutine at line ${target}: no RETURN found -- treating the rest of the program as part of it`);
+                    endIdx = statements.length - 1;
+                }
+                subroutineRanges.push({ start: startIdx, end: endIdx });
+            });
+
+            const pointTable = new Map();
+            const initialSnapshot = {};
+            activePoints.forEach(p => {
+                let val;
+                const hasForced = forcedValues && Object.prototype.hasOwnProperty.call(forcedValues, p.name);
+                if (hasForced) {
+                    val = forcedValues[p.name];
+                } else if (["DI", "DO", "BV"].includes(p.type)) {
+                    val = Math.random() < 0.5 ? 0 : 1;
+                } else {
+                    val = Math.round(Math.random() * 1000) / 10;
+                }
+                pointTable.set(p.name, val);
+                initialSnapshot[p.name] = val;
+            });
+
+            const ctx = { pointTable, errors: [], undeclared: new Set() };
+            const trace = [];
+
+            if (statements.length === 0) {
+                return {
+                    parseErrors, runtimeErrors: [], trace: [], initialSnapshot,
+                    finalSnapshot: initialSnapshot, undeclaredPoints: [], noStatements: true
+                };
+            }
+
+            for (let cycle = 1; cycle <= cycles; cycle++) {
+                trace.push(`__CYCLE__${cycle}`);
+                simRunPass(statements, subroutineRanges, findIndexByLineNum, ctx, cycle, trace);
+            }
+
+            return {
+                parseErrors,
+                runtimeErrors: ctx.errors,
+                trace,
+                initialSnapshot,
+                finalSnapshot: Object.fromEntries(pointTable),
+                undeclaredPoints: Array.from(ctx.undeclared)
+            };
+        }
+
+        function runSimulationUI() {
+            const btn = document.getElementById("runSimBtn");
+            const results = document.getElementById("simResults");
+            const cycles = parseInt(document.getElementById("simCycles").value, 10);
+            const code = document.getElementById("codeEditor").value;
+
+            if (!code.trim()) {
+                results.innerHTML = `<span style="color:#f87171;">Write some PPCL code before running the simulation.</span>`;
+                return;
+            }
+
+            const originalLabel = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner"></span>Running...`;
+
+            try {
+                const result = runSimulation(cycles, getForcedValues());
+                lastSimSnapshot = result.finalSnapshot;
+                renderSimulationResults(result);
+            } catch (err) {
+                results.innerHTML = `<div class="sim-error-box">Simulation crashed unexpectedly: ${err.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalLabel;
+            }
+        }
+
+        function renderSimulationResults(result) {
+            const results = document.getElementById("simResults");
+            let html = "";
+
+            if (result.noStatements) {
+                results.innerHTML = `<span style="color:#f87171;">No executable statements found -- write some PPCL code first.</span>`;
+                return;
+            }
+
+            const allErrors = [...result.parseErrors, ...result.runtimeErrors];
+            if (allErrors.length) {
+                html += `<div class="sim-section-title">Errors (${allErrors.length})</div>`;
+                html += `<div class="sim-error-box">` + allErrors.map(e => `<div>⚠ ${e}</div>`).join("") + `</div>`;
+            } else {
+                html += `<div class="sim-error-box" style="background:#0a2a17; border-color:#166534; color:#86efac;">✓ Ran clean -- no parse or runtime errors.</div>`;
+            }
+
+            if (result.undeclaredPoints.length) {
+                html += `<div class="sim-section-title">Referenced but not in this scenario's point list (defaulted to 0)</div>`;
+                html += `<div class="sim-error-box" style="color:#fbbf24;">` +
+                    result.undeclaredPoints.map(p => `<div>"${p}"</div>`).join("") + `</div>`;
+            }
+
+            html += `<div class="sim-section-title">Point Values (initial -> final after ${document.getElementById("simCycles").value} cycle(s))</div>`;
+            html += `<div class="sim-point-row header"><div>Point</div><div>Type</div><div>Initial</div><div></div><div>Final</div></div>`;
+            activePoints.forEach(p => {
+                const initVal = result.initialSnapshot[p.name];
+                const finalVal = result.finalSnapshot[p.name];
+                const changed = initVal !== finalVal;
+                html += `<div class="sim-point-row ${changed ? "changed" : ""}">` +
+                    `<div style="color:#c2410c;">"${p.name}"</div>` +
+                    `<div style="color:#94a3b8;">${p.type}</div>` +
+                    `<div>${formatPointValue(p, initVal)}</div><div style="color:#64748b;">${changed ? "→" : ""}</div>` +
+                    `<div style="color:${changed ? "#38bdf8" : "#cbd5e1"}; font-weight:${changed ? "bold" : "normal"};">${formatPointValue(p, finalVal)}</div>` +
+                    `</div>`;
+            });
+
+            html += `<div class="sim-section-title">Execution Trace</div>`;
+            const traceHtml = result.trace.map(line => {
+                if (line.startsWith("__CYCLE__")) {
+                    return `<div class="cycle-header">── Cycle ${line.replace("__CYCLE__", "")} ──</div>`;
+                }
+                const cls = line.includes("ERROR") || line.includes("⚠") ? "trace-error" : "";
+                return `<div class="${cls}">${line}</div>`;
+            }).join("");
+            html += `<div class="sim-trace">${traceHtml || "(nothing executed)"}</div>`;
+
+            results.innerHTML = html;
+        }
+
+        // Initialize: blank editor seeded at line 010. Scenario is NOT
+        // auto-loaded so the buffer starts as a clean slate.
+        resetEditorToBlankSlate();
+        renderPointTypeList();
+        initPointTooltip();
+        renderEquipGrid();
+    </script>
+</body>
+
+</html>
