@@ -1841,23 +1841,23 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             "relational": {
                 title: "Relational Expressions -- Knowledge Check",
                 questions: (() => {
-                    const intro = "Using this table of point values -- SAT=55.3, SAS=55, SAF=ON, CCO=0, HCO=100, LTD=OFF, MAO=100, RAF=OFF -- determine True or False:";
+                    const intro = "Point values: SAT=55.3, SAS=55, SAF=ON, CCO=0, HCO=100, LTD=OFF, MAO=100, RAF=OFF. Determine True or False:";
                     return [
                         { type: "truefalse", q: `${intro} IF (SAT .LE. SAS)`, answer: false, explain: "False -- 55.3 is NOT less than or equal to 55." },
-                        { type: "truefalse", q: "IF (SAF .NE. ON)", answer: false, explain: "False -- SAF equals ON, so it does NOT satisfy 'not equal to ON'." },
-                        { type: "truefalse", q: "IF (CCO .GT. 0)", answer: false, explain: "False -- CCO is exactly 0, not greater than 0." },
-                        { type: "truefalse", q: "IF (RAF .EQ. OFF)", answer: true, explain: "True -- RAF is OFF." },
-                        { type: "truefalse", q: "IF (HCO .GE. 1)", answer: true, explain: "True -- HCO is 100, which is greater than or equal to 1." },
-                        { type: "truefalse", q: "IF (MAO .LT. 50)", answer: false, explain: "False -- MAO is 100, not less than 50." }
+                        { type: "truefalse", q: `${intro} IF (SAF .NE. ON)`, answer: false, explain: "False -- SAF equals ON, so it does NOT satisfy 'not equal to ON'." },
+                        { type: "truefalse", q: `${intro} IF (CCO .GT. 0)`, answer: false, explain: "False -- CCO is exactly 0, not greater than 0." },
+                        { type: "truefalse", q: `${intro} IF (RAF .EQ. OFF)`, answer: true, explain: "True -- RAF is OFF." },
+                        { type: "truefalse", q: `${intro} IF (HCO .GE. 1)`, answer: true, explain: "True -- HCO is 100, which is greater than or equal to 1." },
+                        { type: "truefalse", q: `${intro} IF (MAO .LT. 50)`, answer: false, explain: "False -- MAO is 100, not less than 50." }
                     ];
                 })()
             },
             "logical-ops": {
                 title: "Logical Operators -- Knowledge Check",
                 questions: [
-                    { type: "truefalse", q: "Using the same point table (SAT=55.3, SAS=55, SAF=ON, CCO=0, HCO=100, LTD=OFF, MAO=100, RAF=OFF): IF (SAT .LE. SAS .AND. HCO .GE. 1)", answer: false, explain: "False -- SAT .LE. SAS is False, and False .AND. anything is always False." },
-                    { type: "truefalse", q: "IF (SAF .NE. ON .OR. RAF .EQ. OFF)", answer: true, explain: "True -- the first half is False, but RAF .EQ. OFF is True, and False .OR. True is True." },
-                    { type: "truefalse", q: "IF (CCO .GT. 0 .AND. MAO .LT. 50)", answer: false, explain: "False -- CCO .GT. 0 is False, so the whole .AND. is False regardless of the second half." }
+                    { type: "truefalse", q: "Point values: SAT=55.3, SAS=55, SAF=ON, CCO=0, HCO=100, LTD=OFF, MAO=100, RAF=OFF. IF (SAT .LE. SAS .AND. HCO .GE. 1)", answer: false, explain: "False -- SAT .LE. SAS is False, and False .AND. anything is always False." },
+                    { type: "truefalse", q: "Point values: SAT=55.3, SAS=55, SAF=ON, CCO=0, HCO=100, LTD=OFF, MAO=100, RAF=OFF. IF (SAF .NE. ON .OR. RAF .EQ. OFF)", answer: true, explain: "True -- the first half is False, but RAF .EQ. OFF is True, and False .OR. True is True." },
+                    { type: "truefalse", q: "Point values: SAT=55.3, SAS=55, SAF=ON, CCO=0, HCO=100, LTD=OFF, MAO=100, RAF=OFF. IF (CCO .GT. 0 .AND. MAO .LT. 50)", answer: false, explain: "False -- CCO .GT. 0 is False, so the whole .AND. is False regardless of the second half." }
                 ]
             },
             "then-else": {
@@ -1869,11 +1869,11 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             "arithmetic": {
                 title: "Arithmetic Operators -- Knowledge Check",
                 questions: [
-                    { type: "calc", q: "Using AI1=5, AI2=7, AI3=2, AI4=3, AO1=44, AO2=22, AO3=11, AO4=9: calculate COUNT1 = AI1 + AI3 - AI4", answer: 4, tolerance: 0, explain: "5 + 2 - 3 = 4." },
-                    { type: "calc", q: "Calculate OATAVG = AO1 / 4", answer: 11, tolerance: 0, explain: "44 / 4 = 11." },
-                    { type: "calc", q: "Calculate AO6 = AI2", answer: 7, tolerance: 0, explain: "AO6 just takes on AI2's value directly: 7." },
-                    { type: "calc", q: "Calculate AO22 = AO1 * AO3", answer: 484, tolerance: 0, explain: "44 * 11 = 484." },
-                    { type: "calc", q: "Calculate AO6 = AO1 - AO2", answer: 22, tolerance: 0, explain: "44 - 22 = 22." }
+                    { type: "calc", q: "Point values: AI1=5, AI2=7, AI3=2, AI4=3, AO1=44, AO2=22, AO3=11, AO4=9. Calculate COUNT1 = AI1 + AI3 - AI4", answer: 4, tolerance: 0, explain: "5 + 2 - 3 = 4." },
+                    { type: "calc", q: "Point values: AI1=5, AI2=7, AI3=2, AI4=3, AO1=44, AO2=22, AO3=11, AO4=9. Calculate OATAVG = AO1 / 4", answer: 11, tolerance: 0, explain: "44 / 4 = 11." },
+                    { type: "calc", q: "Point values: AI1=5, AI2=7, AI3=2, AI4=3, AO1=44, AO2=22, AO3=11, AO4=9. Calculate AO6 = AI2", answer: 7, tolerance: 0, explain: "AO6 just takes on AI2's value directly: 7." },
+                    { type: "calc", q: "Point values: AI1=5, AI2=7, AI3=2, AI4=3, AO1=44, AO2=22, AO3=11, AO4=9. Calculate AO22 = AO1 * AO3", answer: 484, tolerance: 0, explain: "44 * 11 = 484." },
+                    { type: "calc", q: "Point values: AI1=5, AI2=7, AI3=2, AI4=3, AO1=44, AO2=22, AO3=11, AO4=9. Calculate AO6 = AO1 - AO2", answer: 22, tolerance: 0, explain: "44 - 22 = 22." }
                 ]
             },
             "precedence": {
@@ -1933,8 +1933,8 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 title: "Practical Exercise -- Modular Programming & Decision Tables",
                 questions: [
                     { type: "code", q: "Given this sequence of operation -- Occupied: supply/return fans start, heating valve/mixing dampers/cooling valve modulate in sequence to hold discharge temp setpoint. Smoke Safety: smoke detectors de-energize supply/return fans, all dampers/valves fail-safe after the fan de-energizes. Unoccupied: fans stop, cooling and heating valves close, mixing dampers close to outdoor air. -- If a smoke detector trips, which section(s) of the program execute?", context: "Real AHU programs check safety before mode, and safety overrides everything else. Correct answer: only the Smoke Safety section executes (it takes priority over Occupied/Unoccupied logic)." },
-                    { type: "code", q: "During normal daytime (occupied) operation, which section(s) of the program execute?", context: "Correct answer: the Occupied section (fans run, valves/dampers modulate to hold discharge temp setpoint)." },
-                    { type: "code", q: "Fill in a decision table for this sequence: for each of Occupied / Unoccupied / Safety-Smoke, what state are Supply Fan, Return Fan, Heating Valve, Mixed Air Damper, and Cooling Coil Valve in?", context: "Correct decision table -- Occupied: Supply Fan ON, Return Fan ON, Heating/Cooling valves and Mixed Air Damper modulating to hold setpoint. Unoccupied: Supply Fan OFF, Return Fan OFF, Heating Valve closed, Mixed Air Damper closed to OA, Cooling Valve closed. Safety Smoke: Supply Fan OFF, Return Fan OFF, Heating Valve/Mixed Air Damper/Cooling Valve in their fail-safe position." }
+                    { type: "code", q: "Using the same AHU sequence of operation as question 1 (Occupied: supply/return fans start, heating valve/mixing dampers/cooling valve modulate to hold discharge temp setpoint. Smoke Safety: smoke detectors de-energize supply/return fans, all dampers/valves fail-safe. Unoccupied: fans stop, cooling/heating valves close, mixing dampers close to outdoor air) -- during normal daytime (occupied) operation, which section(s) of the program execute?", context: "Correct answer: the Occupied section (fans run, valves/dampers modulate to hold discharge temp setpoint)." },
+                    { type: "code", q: "Using that same AHU sequence of operation, fill in a decision table: for each of Occupied / Unoccupied / Safety-Smoke, what state are Supply Fan, Return Fan, Heating Valve, Mixed Air Damper, and Cooling Coil Valve in?", context: "Sequence recap -- Occupied: supply/return fans start, heating valve/mixing dampers/cooling valve modulate to hold discharge temp setpoint. Smoke Safety: smoke detectors de-energize supply/return fans, all dampers/valves fail-safe after the fan de-energizes. Unoccupied: fans stop, cooling and heating valves close, mixing dampers close to outdoor air. Correct decision table -- Occupied: Supply Fan ON, Return Fan ON, Heating/Cooling valves and Mixed Air Damper modulating to hold setpoint. Unoccupied: Supply Fan OFF, Return Fan OFF, Heating Valve closed, Mixed Air Damper closed to OA, Cooling Valve closed. Safety Smoke: Supply Fan OFF, Return Fan OFF, Heating Valve/Mixed Air Damper/Cooling Valve in their fail-safe position." }
                 ]
             }
         };
@@ -2048,7 +2048,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             const q = KNOWLEDGE_CHECKS[key].questions[idx];
             const isRight = chosen === correct;
             kcSetFeedback(id, isRight ? "correct" : "incorrect",
-                `${isRight ? "✓ Correct." : "✗ Not quite."} ${q.explain}`);
+                `${isRight ? "✓ Correct." : "✗ Incorrect."} ${q.explain}`);
             kcBumpProgress(id);
         }
 
@@ -2060,7 +2060,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             const q = KNOWLEDGE_CHECKS[key].questions[idx];
             const isRight = accepted.some(a => a.toLowerCase().replace(/\s+/g, " ") === val);
             kcSetFeedback(id, isRight ? "correct" : "incorrect",
-                `${isRight ? "✓ Correct." : "✗ Not quite."} ${q.explain}`);
+                `${isRight ? "✓ Correct." : `✗ Incorrect -- the answer is "${accepted[0]}".`} ${q.explain}`);
             kcBumpProgress(id);
         }
 
@@ -2073,7 +2073,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             const q = KNOWLEDGE_CHECKS[key].questions[idx];
             const isRight = !isNaN(val) && Math.abs(val - correctVal) <= (tolerance || 0.001);
             kcSetFeedback(id, isRight ? "correct" : "incorrect",
-                `${isRight ? "✓ Correct." : `✗ Not quite -- the answer is ${correctVal}.`} ${q.explain}`);
+                `${isRight ? "✓ Correct." : `✗ Incorrect -- the answer is ${correctVal}.`} ${q.explain}`);
             kcBumpProgress(id);
         }
 
