@@ -835,6 +835,166 @@
         .learn-code .c { color: #2f6b2f; }
         .learn-code .kw { color: #60a5fa; font-weight: bold; }
         .learn-code .pt { color: #e2e8f0; }
+
+        /* --- KNOWLEDGE CHECK QUIZ BLOCKS --- */
+        .kc-block {
+            margin: 0 0 18px;
+            border: 1px solid var(--siemens-teal);
+            border-radius: 4px;
+            background: #081a28;
+            overflow: hidden;
+        }
+
+        .kc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            cursor: pointer;
+            background: #0a2a2a;
+        }
+
+        .kc-header .kc-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #5eead4;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .kc-header .kc-progress {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: normal;
+            text-transform: none;
+            letter-spacing: normal;
+            margin-left: 8px;
+        }
+
+        .kc-toggle {
+            background: none;
+            border: none;
+            color: #5eead4;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .kc-body {
+            padding: 12px 14px;
+        }
+
+        .kc-question {
+            padding: 10px 0;
+            border-top: 1px solid var(--panel-border);
+        }
+
+        .kc-question:first-child {
+            border-top: none;
+            padding-top: 0;
+        }
+
+        .kc-qtext {
+            font-size: 13px;
+            color: #cbd5e1;
+            line-height: 1.55;
+            margin: 0 0 8px;
+        }
+
+        .kc-qtext .kc-qnum {
+            color: #5eead4;
+            font-weight: 700;
+            margin-right: 4px;
+        }
+
+        .kc-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .kc-btn {
+            background: #0f1a26;
+            color: #cbd5e1;
+            border: 1px solid var(--panel-border);
+            padding: 6px 16px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .kc-btn:hover { background: #16283b; }
+
+        .kc-btn.kc-selected {
+            background: var(--siemens-teal);
+            color: #fff;
+            border-color: var(--siemens-teal);
+        }
+
+        .kc-text-input {
+            flex: 1;
+            min-width: 160px;
+            background: #070c12;
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            color: #e2e8f0;
+            padding: 6px 8px;
+            font-size: 12.5px;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .kc-textarea {
+            width: 100%;
+            min-height: 60px;
+            background: #070c12;
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            color: #e2e8f0;
+            padding: 8px;
+            font-size: 12.5px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            resize: vertical;
+            margin-bottom: 8px;
+        }
+
+        .kc-feedback {
+            margin-top: 8px;
+            padding: 8px 10px;
+            border-radius: 4px;
+            font-size: 12.5px;
+            line-height: 1.5;
+            display: none;
+        }
+
+        .kc-feedback.kc-correct {
+            display: block;
+            background: #052e1a;
+            border-left: 3px solid #34d399;
+            color: #a7f3d0;
+        }
+
+        .kc-feedback.kc-incorrect {
+            display: block;
+            background: #2e0a0a;
+            border-left: 3px solid #f87171;
+            color: #fecaca;
+        }
+
+        .kc-feedback.kc-partial {
+            display: block;
+            background: #2e2205;
+            border-left: 3px solid #fbbf24;
+            color: #fde68a;
+        }
+
+        .kc-feedback.kc-pending {
+            display: block;
+            background: #0b131e;
+            border-left: 3px solid #64748b;
+            color: #94a3b8;
+        }
     </style>
 </head>
 
@@ -914,6 +1074,7 @@
                         being true.</p>
                     <div class="learn-code"><span class="kw">01000 IF</span> (<span class="pt">"%X%MAU01.DAT"</span> .GT. <span class="pt">"%X%MAU01.DAT.HI"</span>) <span class="kw">THEN</span> ON (<span class="pt">"%X%MAU01.DAT.ALM"</span>) <span class="kw">ELSE</span> OFF (<span class="pt">"%X%MAU01.DAT.ALM"</span>)</div>
                 </div>
+                <div class="kc-slot" data-kc="then-else"></div>
 
                 <div class="learn-section">
                     <h3>5. Comparison Operators</h3>
@@ -923,6 +1084,7 @@
                         between two values, surrounded by dots. The Siemens manual caps any single statement at
                         a combined total of 16 relational + logical operators.</p>
                 </div>
+                <div class="kc-slot" data-kc="relational"></div>
 
                 <div class="learn-section">
                     <h3>5a. Two More Logical Operators -- .NAND. / .XOR.</h3>
@@ -937,6 +1099,7 @@
                         in front of you, treat any <code>.NAND.</code> you find in an existing program as
                         something to verify against that specific panel's firmware rather than assume.</p>
                 </div>
+                <div class="kc-slot" data-kc="logical-ops"></div>
 
                 <div class="learn-section">
                     <h3>5b. Arithmetic Operators &amp; Order of Operations</h3>
@@ -957,6 +1120,8 @@
                         unquoted <code>C</code> is read by the panel as a comment, not code, so
                         <code>500 C = OATEMP</code> silently does nothing.</p>
                 </div>
+                <div class="kc-slot" data-kc="arithmetic"></div>
+                <div class="kc-slot" data-kc="precedence"></div>
 
                 <div class="learn-section">
                     <h3>5c. Math &amp; Trig Functions</h3>
@@ -983,6 +1148,7 @@
                         <code>IF ("%X%FCU101.CLG.VLV" .EQ. ON) THEN ...</code> checks whether a point's current
                         value already equals ON -- it doesn't turn anything on.</p>
                 </div>
+                <div class="kc-slot" data-kc="point-commands"></div>
 
                 <div class="learn-section">
                     <h3>7. SAMPLE(n) -- timers and accumulators</h3>
@@ -998,6 +1164,7 @@
                     <p>Both forms are valid PPCL and this trainer's simulator runs either one correctly --
                         use whichever reads more naturally for the sequence you're writing.</p>
                 </div>
+                <div class="kc-slot" data-kc="sample-timer"></div>
 
                 <div class="learn-section">
                     <h3>8. GOSUB / RETURN -- subroutines</h3>
@@ -1077,8 +1244,31 @@
                     <h3>9. $LOC / $ARG -- local variables</h3>
                     <p><code>$LOC</code> and <code>$ARG</code> (optionally numbered, e.g. <code>$LOC1</code>) are
                         scratch variables local to the program -- useful for temporary math or holding a value
-                        partway through a calculation, without needing a permanent database point for it.</p>
+                        partway through a calculation, without needing a permanent database point for it. Every
+                        new program comes with 15 of each built in automatically:
+                        <code>$LOC1</code>-<code>$LOC15</code> for general calculation results, and
+                        <code>$ARG1</code>-<code>$ARG15</code> specifically for passing values into and out of
+                        subroutines. Local variables use less memory than a real point, but the tradeoff is they
+                        can't be displayed directly on a graphic or commanded from the Commander application --
+                        they only exist inside the program(s) that use them.</p>
                 </div>
+
+                <div class="learn-section">
+                    <h3>9a. LOCAL() -- creating your own named local variables</h3>
+                    <p>Need more scratch variables than the built-in 15, or want one with a meaningful name
+                        instead of a number? <code>LOCAL(pt1...pt16)</code> declares up to 16 custom local
+                        variables in one line -- once declared, they behave exactly like $LOC1-$LOC15 do.</p>
+                    <div class="learn-code"><span class="kw">01000</span> LOCAL (VIR1, VIR2, VIR3, VIR4, VIR5)</div>
+                    <p>Whether built-in or custom, a local variable's name must always be preceded by a
+                        <code>$</code> when you actually use it in a statement, so the panel knows it's a local
+                        variable and not a system/database point:</p>
+                    <div class="learn-code"><span class="kw">01010</span> ON ($VIR1)</div>
+                    <p>Local variables are normally scoped to the program that declared them, but another
+                        program in the <strong>same field panel</strong> can still read one by prefixing it with
+                        that program's name and a colon:</p>
+                    <div class="learn-code"><span class="kw">01020 IF</span> ("PROG1:FANPT" .EQ. ON) <span class="kw">THEN</span> ...</div>
+                </div>
+                <div class="kc-slot" data-kc="local-vars"></div>
 
                 <div class="learn-section">
                     <h3>10. DEFINE -- reusing one block of code across devices</h3>
@@ -1186,9 +1376,93 @@
                         be double-quoted -- which is exactly why every point name in this trainer is quoted, and
                         why a real point reads <code>"BUILDING1.AHU01.SFAN"</code> rather than a bare word.</p>
                 </div>
+                <div class="kc-slot" data-kc="rules"></div>
 
                 <div class="learn-section">
-                    <h3>17. Where to go next</h3>
+                    <h3>17. MIN() -- lowest value of a group</h3>
+                    <p>Selects the smallest value out of 2-15 points or numbers and stores it in a result
+                        point: <code>MIN(RESULT, PT1, PT2, PT3...)</code>. Useful for finding the lowest reading
+                        in a group of related devices -- e.g. the coldest room in a zone.</p>
+                    <div class="learn-code">MIN (AO1, AI1, AI2, AI3, AI4)</div>
+                    <p>If AI1=5, AI2=6, AI3=7, and AI4=10, AO1 gets set to 5 -- the smallest of the four.</p>
+                </div>
+                <div class="kc-slot" data-kc="min-fn"></div>
+
+                <div class="learn-section">
+                    <h3>18. MAX() -- highest value of a group</h3>
+                    <p>The mirror image of MIN: selects the largest value out of 2-15 points or numbers and
+                        stores it in a result point: <code>MAX(RESULT, PT1, PT2, PT3...)</code>. Useful for
+                        things like finding which VAV box in a group has its damper open the most.</p>
+                    <div class="learn-code">MAX (AO1, AI1, AI2, AI3, AI4)</div>
+                    <p>Same four values (AI1=5, AI2=6, AI3=7, AI4=10) -- this time AO1 gets set to 10, the
+                        largest.</p>
+                </div>
+                <div class="kc-slot" data-kc="max-fn"></div>
+
+                <div class="learn-section">
+                    <h3>19. DBSWIT() -- the software version of a mechanical thermostat</h3>
+                    <p>Syntax: <code>DBSWIT(TYPE, INPUT, LOW, HIGH, pt1...pt12)</code>. <code>TYPE</code> is 0
+                        for cooling mode (turns the listed points ON when the input rises above the high limit,
+                        OFF when it drops below the low limit) or 1 for heating mode (ON when input falls below
+                        the low limit, OFF when it rises above the high limit). Between the low and high limits
+                        the points hold their last state -- that gap is the dead band, which is what keeps
+                        equipment from short-cycling right at the setpoint.</p>
+                    <div class="learn-code">DBSWIT (0, RMT, 72, 74, COMP, CFM, EFM)
+DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
+                    <p>First line: cooling -- turn COMP/CFM/EFM ON once Room Temp rises above 74, OFF once it
+                        drops below a 2-degree dead band (72). Second line: heating -- turn HWP/HWV ON once
+                        Room Temp falls below 68, OFF once it rises above a 2-degree dead band (70).</p>
+                </div>
+                <div class="kc-slot" data-kc="dbswit-fn"></div>
+
+                <div class="learn-section">
+                    <h3>20. TIMAVG() -- smoothing out a noisy reading</h3>
+                    <p>Syntax: <code>TIMAVG(RESULT, sample time, # samples, INPUT)</code>. Takes a rolling
+                        average of an input over time instead of reacting to every single scan -- exactly what
+                        you want on a point that constantly jitters (a CFM/flow meter is the classic example),
+                        since reacting to every tiny fluctuation wastes network bandwidth and makes control
+                        hunt. Three rules: sample time must be a whole number (10 is valid, 10.5 is not);
+                        # samples must be an integer from 2 to 10; and the input must be an LAI/LAO point or a
+                        local variable.</p>
+                    <div class="learn-code">TIMAVG ("CWF.AVG", 10, 5, GPM)</div>
+                    <p>That takes one sample every 10 seconds and averages the 5 most recent ones. If the last
+                        5 GPM readings were 1370, 1248, 1302, 1321, and 1296, CWF.AVG = their sum (6537)
+                        divided by 5 = 1307.4.</p>
+                </div>
+                <div class="kc-slot" data-kc="timavg-fn"></div>
+
+                <div class="learn-section">
+                    <h3>21. TABLE() -- linear reset curves and staged control</h3>
+                    <p>Watches an input point (X) and drives an output point (Y) along a straight-line path
+                        between coordinate pairs you define -- the standard way to build a temperature reset
+                        schedule or split one virtual signal across several staged devices. Syntax:
+                        <code>TABLE(INPUT, OUTPUT, X1, Y1, X2, Y2...)</code>, up to 7 X/Y pairs, and the X
+                        values must always be listed in ascending order.</p>
+                    <div class="learn-code">TABLE (AI1, AO1, 0, 0, 5, 50, 10, 100)</div>
+                    <p>When AI1 is 0, AO1 is 0; when AI1 is 5, AO1 is 50 (the midpoint); when AI1 is 10, AO1 is
+                        100 -- and every value in between rises in a straight line. This same tool handles more
+                        elaborate staging too: three separate TABLE statements sharing one virtual driver point
+                        can sequence a heating valve, a mixed air damper, and a cooling valve one after another
+                        as the virtual point sweeps from 0 to 100%, each occupying its own slice of the range.</p>
+                </div>
+                <div class="kc-slot" data-kc="table-fn"></div>
+
+                <div class="learn-section">
+                    <h3>21a. Modular Programming -- splitting one job across multiple programs</h3>
+                    <p>A field panel doesn't have to solve everything in one giant program. Large or complex
+                        sequences are often broken into several smaller, focused programs instead -- one handling
+                        scheduling, one handling the control loop, one handling alarms -- that cooperate through
+                        shared local variables (the cross-program <code>"PROGNAME:VARNAME"</code> syntax from
+                        section 9a) or shared database points. This modular approach keeps any single program
+                        short enough to read and troubleshoot, lets you edit one piece of logic without
+                        recompiling the whole sequence, and makes it easy to reuse a well-tested program (like a
+                        standard lead-lag block) across many pieces of equipment just by changing which points it
+                        points at.</p>
+                </div>
+                <div class="kc-slot" data-kc="modular-programming"></div>
+
+                <div class="learn-section">
+                    <h3>22. Where to go next</h3>
                     <p>Head to the <strong>Program Editor &amp; Simulator</strong> tab (F1), pick
                         Beginner/Intermediate/Expert and Write New Code or Edit Existing Code, then click
                         "Generate Scenario." Want to drill one specific piece of equipment instead of a random
@@ -1508,6 +1782,334 @@
             body.style.display = collapsed ? "none" : "block";
             btn.textContent = collapsed ? "▸ Show" : "▾ Hide";
         }
+
+        // ============================================================
+        // KNOWLEDGE CHECK QUIZZES (Learn PPCL tab)
+        // ============================================================
+        // Sourced from a real Siemens field-training workbook (AMC-BAU 335
+        // PPCL Workbook) the user uploaded. That workbook ships with zero
+        // answer key, so answers below were independently derived: for
+        // objectively-gradable items (true/false, fill-in-the-blank,
+        // calculations) the correct value was computed from the workbook's
+        // own given data/tables. Open-ended "write a line of PPCL" items
+        // have no single correct answer, so those are checked by sending
+        // the student's attempt to /api/grade-knowledge-check for real AI
+        // feedback rather than a hardcoded string match.
+        //
+        // Each block lives in KNOWLEDGE_CHECKS keyed by an id that matches
+        // a <div class="kc-slot" data-kc="ID"></div> placeholder sitting
+        // right after the Learn PPCL section it quizzes. renderKnowledgeChecks()
+        // walks every slot at page load and fills it in.
+        //
+        // Question shape:
+        //   { type: "truefalse", q, answer: true|false, explain }
+        //   { type: "fillblank", q, accept: [...acceptable strings...], explain }
+        //   { type: "calc", q, answer: number, tolerance: number, explain }
+        //   { type: "code", q, context }   -- context is extra background sent
+        //                                     to the AI grader alongside the question
+        const KNOWLEDGE_CHECKS = {
+            "rules": {
+                title: "PPCL Rules and Guidelines -- Knowledge Check",
+                questions: [
+                    { type: "truefalse", q: "An APOGEE field panel can only hold one running program.", answer: false, explain: "False -- a field panel with APOGEE firmware can contain one OR MORE programs running at the same time." },
+                    { type: "fillblank", q: "Each statement is assigned a line number between ___ and ___.", accept: ["1 and 32767", "1 32767", "1-32767", "1 to 32767"], explain: "1 and 32,767 -- that's the full valid range of PPCL line numbers." },
+                    { type: "fillblank", q: "Lines are typically numbered by multiples of ___.", accept: ["10", "ten"], explain: "Ten (10, 20, 30...) -- leaves room to insert new lines later without renumbering everything." },
+                    { type: "fillblank", q: "The maximum number of statements in a PPCL program is limited by the amount of ___ in the field panel.", accept: ["free memory", "memory", "available memory"], explain: "Free memory -- viewable per-panel from the System Profile application on the Insight workstation." },
+                    { type: "fillblank", q: "When the last line of the program has been executed, the field panel will ___.", accept: ["return to the first line", "go back to line 1", "return to line 1", "wrap to the first line", "restart at the first line"], explain: "It automatically returns to the first line of the program and keeps processing -- programs run in an endless ascending loop." },
+                    { type: "fillblank", q: "Logical point names that use characters other than A-Z, or 0-9 must use ___ in PPCL statements.", accept: ["double quotes", "quotes", "quotation marks"], explain: "Double quotes -- e.g. \"BLDG950.AH01.SAF\"." }
+                ]
+            },
+            "local-vars": {
+                title: "Local Variables -- Knowledge Check",
+                questions: [
+                    { type: "fillblank", q: "How many $LOC variables come prebuilt in each program?", accept: ["15", "fifteen"], explain: "15 -- $LOC1 through $LOC15, built into every new program automatically." },
+                    { type: "fillblank", q: "What local variables are specifically used in subroutines?", accept: ["$arg", "arg", "$arg1-$arg15", "$arg1 through $arg15"], explain: "$ARG1 through $ARG15 -- the other 15 built-in locals, reserved for passing values into/out of subroutines." },
+                    { type: "truefalse", q: "Local variables can be put directly onto a graphic.", answer: false, explain: "False -- local variables can't be directly displayed on a graphic or commanded from the Commander/Global Commander application, unlike real points." },
+                    { type: "fillblank", q: "When referencing a local variable contained inside the same program, ___ must precede the name of the local variable.", accept: ["$", "a dollar sign", "dollar sign"], explain: "A $ (dollar sign) -- e.g. ON ($FANPT) -- so the panel knows it's a local variable, not a system point." },
+                    { type: "code", q: "Write a line of PPCL that creates custom local variables for these points: SAFRMP, RAFRMP, MAORMP.", context: "The LOCAL() statement declares custom local variables. Syntax: LOCAL(pt1...pt16). Correct answer: LOCAL (SAFRMP, RAFRMP, MAORMP)" }
+                ]
+            },
+            "point-commands": {
+                title: "Point Commands -- Knowledge Check",
+                questions: [
+                    { type: "code", q: "Write a statement: the point TEST.BLR1.SS needs to be turned ON.", context: "Point name has non-alphanumeric characters (periods) so it must be quoted. Correct answer: ON (\"TEST.BLR1.SS\")" },
+                    { type: "code", q: "Write a statement: the point TEST.SAF1.SPD needs to be commanded to 65%.", context: "SET() takes the value first, then the point. Correct answer: SET (65, \"TEST.SAF1.SPD\")" },
+                    { type: "code", q: "Write a statement: the point SIE.AH55.RAD needs to be commanded to 100%.", context: "SET() takes the value first, then the point. Correct answer: SET (100, \"SIE.AH55.RAD\")" },
+                    { type: "code", q: "Write a statement: the point SIE.CLR1.SS needs to be turned OFF.", context: "Correct answer: OFF (\"SIE.CLR1.SS\")" }
+                ]
+            },
+            "relational": {
+                title: "Relational Expressions -- Knowledge Check",
+                questions: (() => {
+                    const intro = "Using this table of point values -- SAT=55.3, SAS=55, SAF=ON, CCO=0, HCO=100, LTD=OFF, MAO=100, RAF=OFF -- determine True or False:";
+                    return [
+                        { type: "truefalse", q: `${intro} IF (SAT .LE. SAS)`, answer: false, explain: "False -- 55.3 is NOT less than or equal to 55." },
+                        { type: "truefalse", q: "IF (SAF .NE. ON)", answer: false, explain: "False -- SAF equals ON, so it does NOT satisfy 'not equal to ON'." },
+                        { type: "truefalse", q: "IF (CCO .GT. 0)", answer: false, explain: "False -- CCO is exactly 0, not greater than 0." },
+                        { type: "truefalse", q: "IF (RAF .EQ. OFF)", answer: true, explain: "True -- RAF is OFF." },
+                        { type: "truefalse", q: "IF (HCO .GE. 1)", answer: true, explain: "True -- HCO is 100, which is greater than or equal to 1." },
+                        { type: "truefalse", q: "IF (MAO .LT. 50)", answer: false, explain: "False -- MAO is 100, not less than 50." }
+                    ];
+                })()
+            },
+            "logical-ops": {
+                title: "Logical Operators -- Knowledge Check",
+                questions: [
+                    { type: "truefalse", q: "Using the same point table (SAT=55.3, SAS=55, SAF=ON, CCO=0, HCO=100, LTD=OFF, MAO=100, RAF=OFF): IF (SAT .LE. SAS .AND. HCO .GE. 1)", answer: false, explain: "False -- SAT .LE. SAS is False, and False .AND. anything is always False." },
+                    { type: "truefalse", q: "IF (SAF .NE. ON .OR. RAF .EQ. OFF)", answer: true, explain: "True -- the first half is False, but RAF .EQ. OFF is True, and False .OR. True is True." },
+                    { type: "truefalse", q: "IF (CCO .GT. 0 .AND. MAO .LT. 50)", answer: false, explain: "False -- CCO .GT. 0 is False, so the whole .AND. is False regardless of the second half." }
+                ]
+            },
+            "then-else": {
+                title: "Then/Else -- Practice Exercise",
+                questions: [
+                    { type: "code", q: "Write one complete line of PPCL: turn ON a fan (FAN) when room temp (RMT) is above 85 degrees, and OFF when it's below 85.", context: "Needs IF/THEN/ELSE with .GT. comparison. A correct shape: IF (RMT .GT. 85) THEN ON (FAN) ELSE OFF (FAN) -- the ELSE is what returns the fan to OFF once the temp drops back down; without it the fan would stay stuck ON forever after the first trip." }
+                ]
+            },
+            "arithmetic": {
+                title: "Arithmetic Operators -- Knowledge Check",
+                questions: [
+                    { type: "calc", q: "Using AI1=5, AI2=7, AI3=2, AI4=3, AO1=44, AO2=22, AO3=11, AO4=9: calculate COUNT1 = AI1 + AI3 - AI4", answer: 4, tolerance: 0, explain: "5 + 2 - 3 = 4." },
+                    { type: "calc", q: "Calculate OATAVG = AO1 / 4", answer: 11, tolerance: 0, explain: "44 / 4 = 11." },
+                    { type: "calc", q: "Calculate AO6 = AI2", answer: 7, tolerance: 0, explain: "AO6 just takes on AI2's value directly: 7." },
+                    { type: "calc", q: "Calculate AO22 = AO1 * AO3", answer: 484, tolerance: 0, explain: "44 * 11 = 484." },
+                    { type: "calc", q: "Calculate AO6 = AO1 - AO2", answer: 22, tolerance: 0, explain: "44 - 22 = 22." }
+                ]
+            },
+            "precedence": {
+                title: "Order of Precedence -- Knowledge Check",
+                questions: [
+                    { type: "code", q: "Write a statement to calculate the average static pressure (AHU1.SSP.AVG) from 4 sensors: AHU1.SSP1, AHU1.SSP2, AHU1.SSP3, AHU1.SSP4.", context: "Needs parentheses to force the addition before the division, since / outranks + in normal precedence order. Correct shape: \"AHU1.SSP.AVG\" = (\"AHU1.SSP1\" + \"AHU1.SSP2\" + \"AHU1.SSP3\" + \"AHU1.SSP4\") / 4" },
+                    { type: "code", q: "Write a statement: if the supply fan (SAF) is on and the mixed air damper (MAO) is greater than 80%, increase a counter (CTR) by 1; otherwise set the counter to 0.", context: "Needs IF/THEN/ELSE with .AND. and a self-referencing increment. Correct shape: IF (SAF .EQ. ON .AND. MAO .GT. 80) THEN CTR = CTR + 1 ELSE CTR = 0" },
+                    { type: "calc", q: "Calculate: VRT = 4 + 1 * 2 / (2-1)", answer: 6, tolerance: 0, explain: "Parens first: (2-1)=1. Then multiply/divide left to right: 1*2=2, 2/1=2. Then add: 4+2=6." }
+                ]
+            },
+            "sample-timer": {
+                title: "SAMPLE Statements -- Timer Exercise",
+                questions: [
+                    { type: "code", q: "Create a timer (TMR) that counts up by 5 every 5 seconds while the economizer (ECO) is on, and resets to 0 when ECO is off.", context: "Needs IF/THEN/ELSE with SAMPLE(5) gating the increment. Correct shape: IF (ECO .EQ. ON) THEN SAMPLE(5) TMR = TMR + 5 ELSE TMR = 0" },
+                    { type: "code", q: "An outdoor air temp sensor (OAT) in Field Panel 1 needs to be referenced by Field Panel 2, but only needs updating once a minute. Using SAMPLE and a virtual point (VIR), write a line to do this.", context: "Needs SAMPLE(60) gating an assignment from OAT to VIR. Correct shape: SAMPLE(60) VIR = OAT" },
+                    { type: "code", q: "Create a timer (TMR) that counts in 1-second increments while EF1 or EF2 has PRFON status, or RAF has PRFON status. Reset it to 0 otherwise.", context: "Needs IF/THEN/ELSE with nested .OR. conditions and SAMPLE(1). Correct shape: IF (EF1 .EQ. PRFON .OR. EF2 .EQ. PRFON .OR. RAF .EQ. PRFON) THEN SAMPLE(1) TMR = TMR + 1 ELSE TMR = 0" }
+                ]
+            },
+            "min-fn": {
+                title: "MIN() -- Exercise",
+                questions: [
+                    { type: "fillblank", q: "In MIN (\"RMT.MIN\", RMT1, RMT2, RMT3, RMT4, RMT5), what point is being commanded?", accept: ["rmt.min", "\"rmt.min\""], explain: "RMT.MIN -- that's the RESULT slot, the first argument, where MIN stores its answer." },
+                    { type: "calc", q: "If RMT1=70, RMT2=70, RMT3=68, RMT4=69, RMT5=70, what value will RMT.MIN be set to?", answer: 68, tolerance: 0, explain: "68 -- the smallest of the five readings." }
+                ]
+            },
+            "max-fn": {
+                title: "MAX() -- Exercise",
+                questions: [
+                    { type: "fillblank", q: "In MAX (\"DPR.MAX\", DPR1, DPR2, DPR3, DPR4, DPR5), what point is being commanded?", accept: ["dpr.max", "\"dpr.max\""], explain: "DPR.MAX -- the RESULT slot, where MAX stores its answer." },
+                    { type: "calc", q: "The five DPR values in this exercise are 61%, 69%, 10%, 40%, and 62% (in no particular order). What value will DPR.MAX be set to?", answer: 69, tolerance: 0, explain: "69% -- the largest of the five, regardless of which specific point holds it." }
+                ]
+            },
+            "dbswit-fn": {
+                title: "DBSWIT() -- Exercises",
+                questions: [
+                    { type: "code", q: "Create a DBSWIT: the backup CRAC2 unit needs to turn ON if room temp (RMT) goes above 76 degrees, and OFF when RMT drops below a 5-degree dead band.", context: "Cooling mode (type 0), high limit 76, low limit = 76-5 = 71. Correct answer: DBSWIT (0, RMT, 71, 76, CRAC2)" },
+                    { type: "code", q: "Create a DBSWIT: contactors C1 through C6 (electric baseboard heat) need to turn ON if room temp (RMT) goes below 70 degrees, and OFF when RMT exceeds a 2-degree dead band.", context: "Heating mode (type 1), low limit 70, high limit = 70+2 = 72. Correct answer: DBSWIT (1, RMT, 70, 72, C1, C2, C3, C4, C5, C6)" }
+                ]
+            },
+            "timavg-fn": {
+                title: "TIMAVG() -- Exercises",
+                questions: [
+                    { type: "code", q: "An AHU1 flow meter (SCFM) is noisy. Create a TIMAVG that samples every 2 seconds and averages the 5 most recent samples, storing the result in a virtual point SCFM.V.", context: "Syntax: TIMAVG(RESULT, sample time, #samples, INPUT). Correct answer: TIMAVG (\"SCFM.V\", 2, 5, SCFM)" },
+                    { type: "calc", q: "Using that TIMAVG and these 5 samples -- 12002, 12305, 12126, 12465, 12009 CFM -- what value will SCFM.V be set to?", answer: 12181.4, tolerance: 0.5, explain: "Sum = 60,907. 60,907 / 5 = 12,181.4 CFM." }
+                ]
+            },
+            "table-fn": {
+                title: "TABLE() -- Exercises",
+                questions: [
+                    { type: "code", q: "Create a TABLE statement: output (OUT) should be 0 when input (IN) is 0, and 100 when IN is 100.", context: "Syntax: TABLE(INPUT, OUTPUT, X1, Y1, X2, Y2). Correct answer: TABLE (IN, OUT, 0, 0, 100, 100)" },
+                    { type: "code", q: "Create a TABLE statement: output (OUT) should be 100 when input (IN) is 0, and 0 when IN is 100 (i.e. reversed).", context: "Correct answer: TABLE (IN, OUT, 0, 100, 100, 0)" },
+                    { type: "code", q: "Create a TABLE statement: output (OUT) should be 0 when input (IN) is 0, stay 0 when IN is 5, then rise to 100 when IN is 10.", context: "Three X/Y pairs, X ascending. Correct answer: TABLE (IN, OUT, 0, 0, 5, 0, 10, 100)" },
+                    { type: "code", q: "On AHU3, the outside air damper (OAD) and exhaust air damper (EAD) need to work in REVERSE of the mixed air damper (MAO), all 0-100%. Write TABLE statements for OAD and EAD.", context: "If MAO rises 0->100, OAD/EAD should fall 100->0. Correct answer: TABLE (MAO, OAD, 0, 100, 100, 0) and TABLE (MAO, EAD, 0, 100, 100, 0)" }
+                ]
+            },
+            "modular-programming": {
+                title: "Practical Exercise -- Modular Programming & Decision Tables",
+                questions: [
+                    { type: "code", q: "Given this sequence of operation -- Occupied: supply/return fans start, heating valve/mixing dampers/cooling valve modulate in sequence to hold discharge temp setpoint. Smoke Safety: smoke detectors de-energize supply/return fans, all dampers/valves fail-safe after the fan de-energizes. Unoccupied: fans stop, cooling and heating valves close, mixing dampers close to outdoor air. -- If a smoke detector trips, which section(s) of the program execute?", context: "Real AHU programs check safety before mode, and safety overrides everything else. Correct answer: only the Smoke Safety section executes (it takes priority over Occupied/Unoccupied logic)." },
+                    { type: "code", q: "During normal daytime (occupied) operation, which section(s) of the program execute?", context: "Correct answer: the Occupied section (fans run, valves/dampers modulate to hold discharge temp setpoint)." },
+                    { type: "code", q: "Fill in a decision table for this sequence: for each of Occupied / Unoccupied / Safety-Smoke, what state are Supply Fan, Return Fan, Heating Valve, Mixed Air Damper, and Cooling Coil Valve in?", context: "Correct decision table -- Occupied: Supply Fan ON, Return Fan ON, Heating/Cooling valves and Mixed Air Damper modulating to hold setpoint. Unoccupied: Supply Fan OFF, Return Fan OFF, Heating Valve closed, Mixed Air Damper closed to OA, Cooling Valve closed. Safety Smoke: Supply Fan OFF, Return Fan OFF, Heating Valve/Mixed Air Damper/Cooling Valve in their fail-safe position." }
+                ]
+            }
+        };
+
+        function renderKnowledgeChecks() {
+            document.querySelectorAll(".kc-slot").forEach(slot => {
+                const key = slot.dataset.kc;
+                const kc = KNOWLEDGE_CHECKS[key];
+                if (!kc) return;
+                const total = kc.questions.length;
+                slot.innerHTML = `
+                    <div class="kc-block">
+                        <div class="kc-header" onclick="toggleKcBlock(this)">
+                            <span class="kc-title">🧠 ${kc.title} <span class="kc-progress" id="kc-progress-${key}">0/${total} checked</span></span>
+                            <button type="button" class="kc-toggle">▸ Show</button>
+                        </div>
+                        <div class="kc-body" style="display:none;">
+                            ${kc.questions.map((q, i) => renderKcQuestion(key, i, q)).join("")}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function toggleKcBlock(headerEl) {
+            const block = headerEl.closest(".kc-block");
+            const body = block.querySelector(".kc-body");
+            const btn = block.querySelector(".kc-toggle");
+            const collapsed = body.style.display === "none";
+            body.style.display = collapsed ? "block" : "none";
+            btn.textContent = collapsed ? "▾ Hide" : "▸ Show";
+        }
+
+        function renderKcQuestion(key, i, q) {
+            const id = `kc-${key}-${i}`;
+            const qHtml = `<p class="kc-qtext"><span class="kc-qnum">${i + 1}.</span>${q.q}</p>`;
+            if (q.type === "truefalse") {
+                return `<div class="kc-question">
+                    ${qHtml}
+                    <div class="kc-row">
+                        <button type="button" class="kc-btn" onclick="answerTrueFalse('${id}', true, ${q.answer})">True</button>
+                        <button type="button" class="kc-btn" onclick="answerTrueFalse('${id}', false, ${q.answer})">False</button>
+                    </div>
+                    <div class="kc-feedback" id="${id}-fb"></div>
+                </div>`;
+            }
+            if (q.type === "fillblank") {
+                return `<div class="kc-question">
+                    ${qHtml}
+                    <div class="kc-row">
+                        <input type="text" class="kc-text-input" id="${id}-input" placeholder="Type your answer...">
+                        <button type="button" class="kc-btn" onclick="answerFillblank('${id}', ${JSON.stringify(q.accept)})">Check</button>
+                    </div>
+                    <div class="kc-feedback" id="${id}-fb"></div>
+                </div>`;
+            }
+            if (q.type === "calc") {
+                return `<div class="kc-question">
+                    ${qHtml}
+                    <div class="kc-row">
+                        <input type="text" class="kc-text-input" id="${id}-input" placeholder="Your numeric answer..." style="max-width:140px;">
+                        <button type="button" class="kc-btn" onclick="answerCalc('${id}', ${q.answer}, ${q.tolerance})">Check</button>
+                    </div>
+                    <div class="kc-feedback" id="${id}-fb"></div>
+                </div>`;
+            }
+            if (q.type === "code") {
+                return `<div class="kc-question">
+                    ${qHtml}
+                    <textarea class="kc-textarea" id="${id}-input" placeholder="Write your PPCL here..."></textarea>
+                    <div class="kc-row">
+                        <button type="button" class="kc-btn" onclick="answerCode('${id}')">🤖 Check with AI</button>
+                    </div>
+                    <div class="kc-feedback" id="${id}-fb"></div>
+                </div>`;
+            }
+            return "";
+        }
+
+        // Tracks which question ids have been checked at least once, purely
+        // to drive the "N/total checked" counter in each block's header --
+        // does not need to persist across reloads.
+        const kcChecked = new Set();
+
+        function kcBumpProgress(id) {
+            kcChecked.add(id);
+            const parts = id.split("-");
+            const key = parts.slice(1, -1).join("-");
+            const kc = KNOWLEDGE_CHECKS[key];
+            if (!kc) return;
+            const checkedForThisBlock = kc.questions.filter((_, i) => kcChecked.has(`kc-${key}-${i}`)).length;
+            const el = document.getElementById(`kc-progress-${key}`);
+            if (el) el.textContent = `${checkedForThisBlock}/${kc.questions.length} checked`;
+        }
+
+        function kcSetFeedback(id, cls, html) {
+            const fb = document.getElementById(`${id}-fb`);
+            if (!fb) return;
+            fb.className = `kc-feedback kc-${cls}`;
+            fb.innerHTML = html;
+        }
+
+        function answerTrueFalse(id, chosen, correct) {
+            const container = document.getElementById(`${id}-fb`).closest(".kc-question");
+            container.querySelectorAll(".kc-btn").forEach(b => b.classList.remove("kc-selected"));
+            container.querySelectorAll(".kc-btn").forEach(b => {
+                if ((b.textContent === "True") === chosen) b.classList.add("kc-selected");
+            });
+            const key = id.split("-").slice(1, -1).join("-");
+            const idx = parseInt(id.split("-").pop(), 10);
+            const q = KNOWLEDGE_CHECKS[key].questions[idx];
+            const isRight = chosen === correct;
+            kcSetFeedback(id, isRight ? "correct" : "incorrect",
+                `${isRight ? "✓ Correct." : "✗ Not quite."} ${q.explain}`);
+            kcBumpProgress(id);
+        }
+
+        function answerFillblank(id, accepted) {
+            const input = document.getElementById(`${id}-input`);
+            const val = (input.value || "").trim().toLowerCase().replace(/\s+/g, " ");
+            const key = id.split("-").slice(1, -1).join("-");
+            const idx = parseInt(id.split("-").pop(), 10);
+            const q = KNOWLEDGE_CHECKS[key].questions[idx];
+            const isRight = accepted.some(a => a.toLowerCase().replace(/\s+/g, " ") === val);
+            kcSetFeedback(id, isRight ? "correct" : "incorrect",
+                `${isRight ? "✓ Correct." : "✗ Not quite."} ${q.explain}`);
+            kcBumpProgress(id);
+        }
+
+        function answerCalc(id, correctVal, tolerance) {
+            const input = document.getElementById(`${id}-input`);
+            const raw = (input.value || "").replace(/[,%°$]/g, "").trim();
+            const val = parseFloat(raw);
+            const key = id.split("-").slice(1, -1).join("-");
+            const idx = parseInt(id.split("-").pop(), 10);
+            const q = KNOWLEDGE_CHECKS[key].questions[idx];
+            const isRight = !isNaN(val) && Math.abs(val - correctVal) <= (tolerance || 0.001);
+            kcSetFeedback(id, isRight ? "correct" : "incorrect",
+                `${isRight ? "✓ Correct." : `✗ Not quite -- the answer is ${correctVal}.`} ${q.explain}`);
+            kcBumpProgress(id);
+        }
+
+        async function answerCode(id) {
+            const input = document.getElementById(`${id}-input`);
+            const answer = (input.value || "").trim();
+            const key = id.split("-").slice(1, -1).join("-");
+            const idx = parseInt(id.split("-").pop(), 10);
+            const q = KNOWLEDGE_CHECKS[key].questions[idx];
+            if (!answer) {
+                kcSetFeedback(id, "incorrect", "Write an answer first.");
+                return;
+            }
+            kcSetFeedback(id, "pending", "Checking with AI...");
+            try {
+                const res = await fetch("/api/grade-knowledge-check", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question: q.q, context: q.context || "", answer })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Check failed.");
+                const text = data.feedback || "";
+                const verdictMatch = text.match(/VERDICT:\s*(Correct|Partially Correct|Incorrect)/i);
+                const verdict = verdictMatch ? verdictMatch[1].toLowerCase() : "";
+                const cls = verdict.startsWith("correct") ? "correct" : verdict.startsWith("partially") ? "partial" : "incorrect";
+                const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]*)/i);
+                const feedbackText = feedbackMatch ? feedbackMatch[1].trim() : text;
+                const verdictLabel = verdictMatch ? verdictMatch[1] : "Checked";
+                kcSetFeedback(id, cls, `<strong>${verdictLabel}.</strong> ${feedbackText}`);
+                kcBumpProgress(id);
+            } catch (err) {
+                kcSetFeedback(id, "incorrect", `Couldn't check right now: ${err.message}`);
+            }
+        }
+
         let hintLevel = 0; // 0 = no hint requested yet for this scenario, 1-3 = progressively deeper
         // Last point values produced by either "Run Simulation" or "Save to
         // Panel" -- read by the hover tooltip so it can show a live value
@@ -3062,6 +3664,7 @@
         renderPointTypeList();
         initPointTooltip();
         renderEquipGrid();
+        renderKnowledgeChecks();
     </script>
 </body>
 

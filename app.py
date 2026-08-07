@@ -1541,6 +1541,59 @@ def get_hint():
         return jsonify({"error": friendly}), 502
 
 
+@app.route("/api/grade-knowledge-check", methods=["POST"])
+@rate_limited
+def grade_knowledge_check():
+    data = request.get_json(silent=True) or {}
+    question = (data.get("question") or "").strip()
+    context = (data.get("context") or "").strip()
+    user_answer = (data.get("answer") or "").strip()
+    api_key = os.getenv("OPENAI_API_KEY", "")
+
+    if not user_answer:
+        return jsonify({"error": "Write an answer before checking it."}), 400
+    if not question:
+        return jsonify({"error": "Missing question text."}), 400
+    if not api_key:
+        return jsonify({"error": "The server isn't configured with an OpenAI API key yet. Set OPENAI_API_KEY on the host."}), 400
+
+    try:
+        client = OpenAI(api_key=api_key)
+
+        system_msg = (
+            "You are a Siemens APOGEE PPCL instructor grading ONE short workbook knowledge-check question -- "
+            "not a full field program. The student may be asked to write a single PPCL statement/line, answer "
+            "a short factual question, or fill in a calculation. There is no single canonical answer key, so "
+            "judge correctness by whether the student's answer actually satisfies what the question asks, "
+            "using standard PPCL syntax rules (statements/commands need correct argument order and count, "
+            "point names with non-alphanumeric characters need double quotes, etc.).\n"
+            "Reply in this exact short format, nothing else:\n"
+            "VERDICT: Correct | Partially Correct | Incorrect\n"
+            "FEEDBACK: 1-3 sentences explaining why, and if not fully correct, what's missing or wrong. "
+            "If correct, briefly affirm what makes it right.\n"
+            "Keep the whole reply under 80 words -- this is a quick knowledge check, not a full audit."
+        )
+        user_msg = f"QUESTION:\n{question}\n\nBACKGROUND/CONTEXT (if any):\n{context or '(none)'}\n\nSTUDENT'S ANSWER:\n{user_answer}"
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ]
+        )
+        return jsonify({"feedback": response.choices[0].message.content})
+    except Exception as e:
+        msg = str(e)
+        if "401" in msg or "invalid_api_key" in msg.lower() or "incorrect api key" in msg.lower():
+            friendly = "Invalid OpenAI API key. Double-check the key and try again."
+        elif "429" in msg or "rate limit" in msg.lower() or "quota" in msg.lower():
+            friendly = "OpenAI rate limit or quota exceeded. Wait a moment and try again."
+        else:
+            friendly = f"Check failed: {msg}"
+        return jsonify({"error": friendly}), 502
+
+
 if __name__ == "__main__":
     # Local dev only -- in production this app should run under a real WSGI
     # server (gunicorn), which is what the Procfile points to. debug mode
