@@ -920,7 +920,59 @@
                     <p><code>.EQ.</code> equal, <code>.NE.</code> not equal, <code>.GT.</code> greater than,
                         <code>.LT.</code> less than, <code>.GE.</code> greater or equal, <code>.LE.</code> less
                         or equal, <code>.AND.</code> / <code>.OR.</code> to combine conditions. They always sit
-                        between two values, surrounded by dots.</p>
+                        between two values, surrounded by dots. The Siemens manual caps any single statement at
+                        a combined total of 16 relational + logical operators.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>5a. Two More Logical Operators -- .NAND. / .XOR.</h3>
+                    <p><code>.XOR.</code> is true when exactly one of the two conditions is true (not both, not
+                        neither) -- handy for "these two should never agree" checks like two lead-lag pumps
+                        both claiming to be running.</p>
+                    <div class="learn-code"><span class="kw">200 IF</span> (<span class="pt">"%X%CHWP01.ENA"</span> .XOR. <span class="pt">"%X%CHWP02.ENA"</span>) <span class="kw">THEN</span> OFF (<span class="pt">"%X%CHWP.ALM"</span>) <span class="kw">ELSE</span> ON (<span class="pt">"%X%CHWP.ALM"</span>)</div>
+                    <p><code>.NAND.</code> exists too, but it's worth flagging a real gotcha rather than
+                        teaching it as a fixed rule: its truth table actually changed between Siemens firmware
+                        revisions (older logical-panel firmware evaluated it one way, rev 9.1+/CM/APOGEE
+                        firmware evaluates it differently). Since which one you're running depends on the panel
+                        in front of you, treat any <code>.NAND.</code> you find in an existing program as
+                        something to verify against that specific panel's firmware rather than assume.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>5b. Arithmetic Operators &amp; Order of Operations</h3>
+                    <p>Basic math uses <code>+</code> <code>-</code> <code>*</code> <code>/</code> the way
+                        you'd expect (max 15 arithmetic operators per line), but PPCL evaluates a mixed
+                        expression in a fixed order, high to low precedence: parentheses first, then built-in
+                        functions (Section 5c below), then the <code>.ROOT.</code> operator, then
+                        multiplication/division, then addition/subtraction, then comparisons
+                        (<code>.EQ./.GT./</code>...), then <code>.AND./.NAND.</code>, then <code>.OR./.XOR.</code>
+                        last. Operators at the same level evaluate left to right.</p>
+                    <div class="learn-code"><span class="pt">"%X%CT01.RESULT"</span> = 10 - 5 + 2 * 3
+<span class="pt">"%X%CT01.RESULT"</span> = (10 - 5 + 2) * 3</div>
+                    <p>The first line evaluates to 11 (multiplication happens before the subtraction/addition
+                        around it); the second evaluates to 21 (the parentheses force the addition/subtraction
+                        to happen first, then the whole result gets multiplied by 3). One real gotcha worth
+                        knowing even though this trainer's point names are always quoted:
+                        never name a point (or assign to) a bare <code>C</code> -- a line starting with an
+                        unquoted <code>C</code> is read by the panel as a comment, not code, so
+                        <code>500 C = OATEMP</code> silently does nothing.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>5c. Math &amp; Trig Functions</h3>
+                    <p>PPCL has a small built-in math library, usable anywhere a value is expected. All trig
+                        functions work in <strong>degrees</strong>, not radians:
+                        <code>SQRT(v)</code> square root, <code>SIN(v)</code> / <code>COS(v)</code> /
+                        <code>TAN(v)</code> trig functions, <code>ATN(v)</code> arc-tangent (returns degrees),
+                        <code>LOG(v)</code> natural log, <code>EXP(v)</code> natural antilog (e^v),
+                        <code>COM(v)</code> one's complement (flips a digital 0/1 to its opposite), and the
+                        <code>.ROOT.</code> operator for arbitrary roots: <code>value.ROOT.n</code> is the
+                        n-th root of value.</p>
+                    <div class="learn-code"><span class="pt">"%X%CT01.RVAL"</span> = (<span class="pt">"%X%CT01.TEMP"</span> .ROOT. 3.0)
+<span class="pt">"%X%CT01.PWR"</span> = <span class="pt">"%X%CT01.V"</span> * <span class="pt">"%X%CT01.I"</span> * COS(<span class="pt">"%X%CT01.THETA"</span>)</div>
+                    <p>The first line takes the cube root of TEMP; the second is a real-power calculation from
+                        volts, amps, and phase angle -- the kind of math you'd see feeding an energy-monitoring
+                        point off a power meter's raw readings.</p>
                 </div>
 
                 <div class="learn-section">
@@ -988,10 +1040,16 @@
                         jumping from -- the Safety check at line 01000 jumps forward to the Safety block at
                         02000, and every block (Occupied, Unoccupied, and Safety) ends with its own
                         <code>GOTO 03000</code> forward to the shared landing line, which sits last in the
-                        program since it has the highest number. That's not a style choice: without it,
+                        program since it has the highest number. That's not just a style choice: without it,
                         finishing the Occupied block would fall straight through into whatever comes next in
                         the file (here, the Safety block), silently undoing what the block just did. Every
-                        dispatched section needs its own way out, and every jump has to move forward.</p>
+                        dispatched section needs its own way out. The Siemens manual's actual wording on this is
+                        narrower than a flat "never jump backward" -- what it warns against is using GOTO to
+                        jump back <em>without first executing the program's last line that pass</em>, since
+                        that line is also the power-fail recovery point and skipping it risks an infinite loop
+                        that never reaches the end of the scan. In practice, forward-only is the safe convention
+                        real programs follow (and the one this trainer's simulator enforces), so treat it as
+                        the rule to write by.</p>
                 </div>
 
                 <div class="learn-section">
@@ -1054,7 +1112,83 @@
                 </div>
 
                 <div class="learn-section">
-                    <h3>12. Where to go next</h3>
+                    <h3>12. Special Functions -- ALMPRI() and TOTAL()</h3>
+                    <p><code>ALMPRI(pt)</code> returns a point's current alarm priority level (1-6, under
+                        enhanced alarming) -- test it directly in an IF, or assign it to another point to log
+                        it. <code>TOTAL(pt)</code> returns a point's totalized runtime accumulation value.
+                        Both have one real restriction worth knowing before you reach for them: the target
+                        point has to live in the <strong>same field panel</strong> as the program calling them
+                        -- neither works across the network on a point that belongs to another panel.</p>
+                    <div class="learn-code"><span class="kw">240 IF</span> (ALMPRI(<span class="pt">"%X%CHLR.LEAD.FLT"</span>) .EQ. 1) <span class="kw">THEN</span> ON (<span class="pt">"%X%OPBELL"</span>)
+<span class="kw">810 IF</span> (TOTAL(<span class="pt">"%X%CT01.FAN.ENA"</span>) .GT. 500.0) <span class="kw">THEN</span> ON (<span class="pt">"%X%CT01.FAN.MAINT"</span>)</div>
+                </div>
+
+                <div class="learn-section">
+                    <h3>13. Resident Points -- built-in values you can read anywhere</h3>
+                    <p>The panel maintains a set of system-level points every program can read without
+                        declaring or writing to them -- useful for scheduling and diagnostics logic instead of
+                        building your own from scratch:</p>
+                    <p><code>TIME</code> -- current time in military format (0:00-23:59); can't be assigned to
+                        a virtual point since it isn't decimal. <code>CRTIME</code> -- the same clock as a
+                        decimal (0.00-23.999, so 7:15am = 7.25) -- use this one if you want to display or trend
+                        time-of-day on a graphic. <code>DAY</code> -- day of week, 1=Monday...7=Sunday.
+                        <code>DAYOFM</code> -- day of month, 1-31. <code>MONTH</code> -- 1=January...12=December.
+                        <code>$BATT</code> -- backup battery strength (0/50/100, or DEAD/LOW/OK). <code>LINK</code>
+                        -- 1 if the panel is currently communicating, 0 if not. <code>NODE0</code>-<code>NODE99</code>
+                        -- status of a specific network node by address. <code>SECNDS</code> (and
+                        <code>SECND1</code>-<code>SECND7</code> for seven independent ones) -- a free-running
+                        seconds counter/timer you can read, set, or reset from PPCL, capped at 9,999.
+                        <code>ALMCNT</code> -- live count of points in this panel currently in alarm.</p>
+                    <div class="learn-code"><span class="kw">100 IF</span> (TIME .GE. 6:45 .AND. TIME .LE. 17:30) <span class="kw">THEN</span> ON (<span class="pt">"%X%AHU01.SF.ENA"</span>) <span class="kw">ELSE</span> OFF (<span class="pt">"%X%AHU01.SF.ENA"</span>)
+<span class="kw">110 IF</span> ($BATT .EQ. DEAD) <span class="kw">THEN</span> ON (<span class="pt">"%X%PNL.BATT.ALM"</span>)</div>
+                </div>
+
+                <div class="learn-section">
+                    <h3>14. Priority Indicators -- @EMER / @OPER / @SMOKE / @PDL / @NONE</h3>
+                    <p>Every point actually holds a small priority array under the hood, not just one value --
+                        this is how a smoke-alarm shutdown can override a technician's manual command without
+                        erasing it. An <code>@priority</code> keyword lets you test, command, or release a
+                        point at a specific level: <code>@EMER</code> (the default when no priority is given),
+                        <code>@SMOKE</code>, <code>@OPER</code>, <code>@PDL</code> (demand-limiting), or
+                        <code>@NONE</code>.</p>
+                    <div class="learn-code"><span class="kw">300 IF</span> (<span class="pt">"%X%AHU01.SF.SS"</span> .EQ. @EMER) <span class="kw">THEN</span> ON (<span class="pt">"%X%HORN"</span>)
+<span class="kw">500</span> ON (@EMER,<span class="pt">"%X%AHU01.SF.SS"</span>)
+<span class="kw">700</span> RELEAS (@EMER,<span class="pt">"%X%AHU01.SF.SS"</span>)</div>
+                    <p>Two gotchas: including an <code>@priority</code> keyword takes up the first parameter
+                        slot in ON/OFF/RELEAS/SET, which normally allow up to 16 points, so it drops the max to
+                        15. And RELEAS only releases a point sitting at that priority or lower -- releasing at
+                        <code>@EMER</code> won't touch a point currently locked at <code>@SMOKE</code>, which
+                        matches how it should work in the field: a lower authority can't override a safety
+                        trip.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>15. Point Status Keywords -- beyond ON/OFF</h3>
+                    <p>ON/OFF aren't the only bare status values PPCL understands -- several more exist for
+                        specific point types, used the same way: <code>IF (pt .EQ. STATUS) THEN...</code>.
+                        <code>ALARM</code> -- point is currently in alarm. <code>ALMACK</code> -- point's alarm
+                        has been acknowledged by an operator. <code>FAILED</code> -- point is in a failed
+                        state. <code>HAND</code> -- point is under manual switch control at a Point Termination
+                        Module. <code>AUTO</code> -- an analog loop point is in automatic (vs. manual) mode.
+                        <code>PRFON</code> -- proof-of-operation is currently ON. <code>DAYMOD</code> /
+                        <code>NGTMOD</code> -- an equipment controller is in occupied/unoccupied mode.</p>
+                    <div class="learn-code"><span class="kw">400 IF</span> (<span class="pt">"%X%CHLR1.ENA"</span> .EQ. HAND) <span class="kw">THEN</span> ON (<span class="pt">"%X%CHLR1.OVRD.ALM"</span>)</div>
+                </div>
+
+                <div class="learn-section">
+                    <h3>16. Program Size &amp; Naming Rules</h3>
+                    <p>Line numbers can run from 1 to 32,767 -- this trainer's fixed 5-digit auto-numbering
+                        starting at 01000 is a formatting convention for consistency, not a hard panel limit.
+                        Programs execute in ascending line-number order and then wrap back to the first line
+                        automatically; that first line should always be reachable every single pass, since it
+                        also doubles as the recovery point the panel resumes at after a power failure. Point
+                        names longer than 6 characters, or containing anything other than letters/digits, must
+                        be double-quoted -- which is exactly why every point name in this trainer is quoted, and
+                        why a real point reads <code>"BUILDING1.AHU01.SFAN"</code> rather than a bare word.</p>
+                </div>
+
+                <div class="learn-section">
+                    <h3>17. Where to go next</h3>
                     <p>Head to the <strong>Program Editor &amp; Simulator</strong> tab (F1), pick
                         Beginner/Intermediate/Expert and Write New Code or Edit Existing Code, then click
                         "Generate Scenario." Want to drill one specific piece of equipment instead of a random
