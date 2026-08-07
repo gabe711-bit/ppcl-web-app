@@ -181,6 +181,33 @@
             color: #64748b;
         }
 
+        .equip-focus-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #0a2a2a;
+            border: 1px solid var(--siemens-teal);
+            color: #5eead4;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .equip-focus-clear {
+            background: none;
+            border: none;
+            color: #5eead4;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1;
+            padding: 0 0 0 2px;
+        }
+
+        .equip-focus-clear:hover {
+            color: #fff;
+        }
+
         .card {
             background: var(--panel-card);
             border: 1px solid var(--panel-border);
@@ -1025,6 +1052,11 @@
                     style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                     <div class="card-title" style="margin: 0; border: none;">Controller Sequence Prompt</div>
                     <div style="display: flex; gap: 6px; align-items: center;">
+                        <span id="equipFocusBadge" class="equip-focus-badge" style="display:none;">
+                            <span class="equip-focus-label"></span>
+                            <button type="button" onclick="clearEquipFocus()" class="equip-focus-clear"
+                                title="Clear equipment focus -- back to Random">✕</button>
+                        </span>
                         <select id="difficultySelect" style="width: auto; margin-bottom: 0; padding: 6px 8px;">
                             <option value="easy">🟢 Beginner</option>
                             <option value="medium" selected>🟡 Intermediate</option>
@@ -1211,12 +1243,14 @@
         // --- EQUIPMENT FOCUS ---
         // Lets a student generate scenarios from ONE equipment pool instead
         // of the full random mix. Keys must match app.py's EQUIPMENT_CATEGORIES
-        // exactly. equipmentFocus is a one-shot filter: generateEquipmentScenario()
-        // sets it, calls the normal loadScenario() so all the usual machinery
-        // (Save to Panel gating, force values, etc.) works unchanged, then
-        // clears it again -- so a later "Generate Scenario" click back on the
-        // Program Editor tab goes back to pulling from the full pool rather
-        // than silently staying locked to whatever equipment was last picked.
+        // exactly. equipmentFocus is STICKY once set: generateEquipmentScenario()
+        // sets it and calls the normal loadScenario() so all the usual machinery
+        // (Save to Panel gating, force values, etc.) works unchanged, and it
+        // stays set afterward -- so hitting "Generate Scenario" again on the
+        // Program Editor tab (loadScenario() reads the same global) keeps
+        // pulling from that same equipment pool instead of silently reverting
+        // to the full random mix. A visible badge next to the Generate button
+        // shows the active focus and lets the student clear it back to Random.
         let equipmentFocus = null;
         const EQUIPMENT_FOCUS_OPTIONS = [
             { key: "ahu", title: "Air Handling Units", sub: "AHU01 / AHU02 / AHU03 -- fans, dampers, coils, static pressure" },
@@ -1249,6 +1283,33 @@
             const opt = EQUIPMENT_FOCUS_OPTIONS.find(o => o.key === key);
             document.getElementById("equipHint").textContent =
                 `Ready -- scenarios will be pulled only from ${opt ? opt.title : key}.`;
+            updateEquipFocusIndicator();
+        }
+
+        // Reflects the sticky equipmentFocus state next to the Program
+        // Editor's own "Generate Scenario" button, and lets the student turn
+        // it back off so future generates go back to the full random pool.
+        function updateEquipFocusIndicator() {
+            const badge = document.getElementById("equipFocusBadge");
+            if (!badge) return;
+            if (equipmentFocus) {
+                const opt = EQUIPMENT_FOCUS_OPTIONS.find(o => o.key === equipmentFocus);
+                badge.style.display = "inline-flex";
+                badge.querySelector(".equip-focus-label").textContent =
+                    `🎯 ${opt ? opt.title : equipmentFocus} only`;
+            } else {
+                badge.style.display = "none";
+            }
+        }
+
+        function clearEquipFocus() {
+            equipmentFocus = null;
+            document.querySelectorAll(".equip-btn").forEach(b => b.classList.remove("active"));
+            const genBtn = document.getElementById("equipGenBtn");
+            if (genBtn) genBtn.disabled = true;
+            const hint = document.getElementById("equipHint");
+            if (hint) hint.textContent = "Pick an equipment type above to enable \"Generate Scenario.\"";
+            updateEquipFocusIndicator();
         }
 
         async function generateEquipmentScenario() {
@@ -1262,11 +1323,8 @@
             // than force it into a bad state.
             if (diff) document.getElementById("difficultySelect").value = diff;
             switchTab("editor");
-            try {
-                await loadScenario(diff);
-            } finally {
-                equipmentFocus = null;
-            }
+            updateEquipFocusIndicator();
+            await loadScenario(diff);
         }
         let hintLevel = 0; // 0 = no hint requested yet for this scenario, 1-3 = progressively deeper
         // Last point values produced by either "Run Simulation" or "Save to
