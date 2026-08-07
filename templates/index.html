@@ -1440,26 +1440,71 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                         values must always be listed in ascending order.</p>
                     <div class="learn-code">TABLE (AI1, AO1, 0, 0, 5, 50, 10, 100)</div>
                     <p>When AI1 is 0, AO1 is 0; when AI1 is 5, AO1 is 50 (the midpoint); when AI1 is 10, AO1 is
-                        100 -- and every value in between rises in a straight line. This same tool handles more
-                        elaborate staging too: three separate TABLE statements sharing one virtual driver point
-                        can sequence a heating valve, a mixed air damper, and a cooling valve one after another
-                        as the virtual point sweeps from 0 to 100%, each occupying its own slice of the range.</p>
+                        100 -- and every value in between rises in a straight line.</p>
+                    <p>A real reset curve usually needs more than two points, since the relationship isn't one
+                        straight line end to end -- up to 7 X/Y pairs let you bend the curve at each breakpoint.
+                        Say a supply air setpoint (SAS) needs to reset off room temp (RMT) like this: RMT 60 -&gt;
+                        SAS 75, RMT 65 -&gt; SAS 68, RMT 68-72 -&gt; SAS holds flat at 55, RMT 75 -&gt; SAS 52, RMT
+                        80 -&gt; SAS 50 -- as the room gets warmer, less heat is needed so the setpoint falls,
+                        with a flat dead zone between 68-72 where it doesn't change at all:</p>
+                    <div class="learn-code">TABLE (RMT, SAS, 60, 75, 65, 68, 68, 55, 72, 55, 75, 52, 80, 50)</div>
+                    <p>Six X/Y pairs, X (RMT) ascending the whole way as required. The repeated Y value at 68 and
+                        72 is what creates that flat dead-zone segment in the middle of the curve -- TABLE doesn't
+                        require each segment to actually slope, two consecutive points with the same Y just hold
+                        the output level across that stretch of input.</p>
+                    <p>This same tool handles staged control too, not just curves: three separate TABLE
+                        statements sharing one virtual driver point can sequence a heating valve, a mixed air
+                        damper, and a cooling valve one after another as the virtual point sweeps from 0 to 100%,
+                        each occupying its own slice of the range -- e.g. <code>TABLE (VIR, HCO, 0, 100, 33.3,
+                        0)</code> fully opens the heating valve at 0% and fully closes it by 33.3%, then a second
+                        TABLE statement takes over the mixed air damper through the middle of the range, and a
+                        third opens the cooling valve over the last third -- so one virtual point drives all
+                        three devices in sequence without any overlap.</p>
                 </div>
                 <div class="kc-slot" data-kc="table-fn"></div>
 
                 <div class="learn-section">
-                    <h3>21a. Modular Programming -- splitting one job across multiple programs</h3>
-                    <p>A field panel doesn't have to solve everything in one giant program. Large or complex
-                        sequences are often broken into several smaller, focused programs instead -- one handling
-                        scheduling, one handling the control loop, one handling alarms -- that cooperate through
-                        shared local variables (the cross-program <code>"PROGNAME:VARNAME"</code> syntax from
-                        section 9a) or shared database points. This modular approach keeps any single program
-                        short enough to read and troubleshoot, lets you edit one piece of logic without
-                        recompiling the whole sequence, and makes it easy to reuse a well-tested program (like a
-                        standard lead-lag block) across many pieces of equipment just by changing which points it
-                        points at.</p>
+                    <h3>21a. CSAL &amp; Modular Programming -- one standard layout for every program</h3>
+                    <p>The current Siemens standard for writing PPCL is to pull a proven program from the
+                        Navigator Library -- called CSAL, the Custom Solutions Application Library -- and modify
+                        it to fit the job, rather than writing every program from a blank line 1. CSAL programs
+                        share a common, companywide layout, which pays off in three ways: troubleshooting is
+                        faster because every tech knows where to look, programs are tested and proven over time
+                        instead of reinvented per job, and a program written for one air handler can usually be
+                        reused on the next one with minimal changes.</p>
+                    <p>That shared layout is called <strong>modular programming</strong>: instead of splitting
+                        the work across multiple program files, one AHU program's line numbers are organized into
+                        named functional blocks called <strong>operational modes</strong>, each living in its own
+                        reserved range of line numbers. The modes never connect to one another directly -- the
+                        only thing that routes between them is the Decision Tree block, which runs on every scan
+                        and GOTOs the program into whichever mode block applies right now. The standard AHU
+                        line-number layout looks like this:</p>
+                    <table style="width:100%; border-collapse:collapse; margin:10px 0; font-size:13px;">
+                        <tr style="background:#0a2a2a;"><th style="text-align:left; padding:4px 8px; border:1px solid #1e3a4a;">Lines</th><th style="text-align:left; padding:4px 8px; border:1px solid #1e3a4a;">Section</th></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">01000-01900</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Common Area -- runs every pass, no matter the mode</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">02000-02900</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Decision Tree -- picks the mode/safety block to jump to</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">03000-03900</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Warm-Up</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">04000-04900</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Cool-Down</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">05000-05900</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Occupied</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">06000-06390</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Unoccupied</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">06400-06590</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Night Heating</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">06600-06990</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Night Cooling</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">07000-07190</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Safety SMK (smoke)</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">07200-07390</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Safety HSP (high static)</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">07400-07590</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Safety LTD (low temp)</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">08000-08400</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Humidity Control (only if the sequence calls for it)</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">08500-08900</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Fan Tracking (only if the unit modulates fan speed)</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">09000-09900</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">Branch Specific -- special functions unique to this unit</td></tr>
+                        <tr><td style="padding:4px 8px; border:1px solid #1e3a4a;">10000</td><td style="padding:4px 8px; border:1px solid #1e3a4a;">End of Program -- GOTOs back to line 1</td></tr>
+                    </table>
+                    <p>Not every unit uses every section -- a constant-volume AHU with no humidity control just
+                        skips the Humidity Control block entirely, and the Decision Tree never routes into it.
+                        The Common Area and Decision Tree are the only two blocks every program has, since they
+                        run regardless of mode; everything else is mode-specific and reached only through a GOTO
+                        from the Decision Tree.</p>
                 </div>
                 <div class="kc-slot" data-kc="modular-programming"></div>
+                <div class="kc-slot" data-kc="decision-table-exercise"></div>
 
                 <div class="learn-section">
                     <h3>22. Where to go next</h3>
@@ -1926,16 +1971,31 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     { type: "code", q: "Create a TABLE statement: output (OUT) should be 0 when input (IN) is 0, and 100 when IN is 100.", context: "Syntax: TABLE(INPUT, OUTPUT, X1, Y1, X2, Y2). Correct answer: TABLE (IN, OUT, 0, 0, 100, 100)" },
                     { type: "code", q: "Create a TABLE statement: output (OUT) should be 100 when input (IN) is 0, and 0 when IN is 100 (i.e. reversed).", context: "Correct answer: TABLE (IN, OUT, 0, 100, 100, 0)" },
                     { type: "code", q: "Create a TABLE statement: output (OUT) should be 0 when input (IN) is 0, stay 0 when IN is 5, then rise to 100 when IN is 10.", context: "Three X/Y pairs, X ascending. Correct answer: TABLE (IN, OUT, 0, 0, 5, 0, 10, 100)" },
-                    { type: "code", q: "On AHU3, the outside air damper (OAD) and exhaust air damper (EAD) need to work in REVERSE of the mixed air damper (MAO), all 0-100%. Write TABLE statements for OAD and EAD.", context: "If MAO rises 0->100, OAD/EAD should fall 100->0. Correct answer: TABLE (MAO, OAD, 0, 100, 100, 0) and TABLE (MAO, EAD, 0, 100, 100, 0)" }
+                    { type: "code", q: "On AHU3, the outside air damper (OAD) and exhaust air damper (EAD) need to work in REVERSE of the mixed air damper (MAO), all 0-100%. Write TABLE statements for OAD and EAD.", context: "If MAO rises 0->100, OAD/EAD should fall 100->0. Correct answer: TABLE (MAO, OAD, 0, 100, 100, 0) and TABLE (MAO, EAD, 0, 100, 100, 0)" },
+                    { type: "code", q: "AHU7 has two hot water valves (HCO1 and HCO2) controlled off one virtual point (VIR), 0-100%. HCO1 should modulate open as VIR rises from 0 to 66.6%, and stay fully open once VIR is above 66.6%. HCO2 should modulate open as VIR rises from 66.7 to 100%. Write TABLE statements for HCO1 and HCO2.", context: "HCO1 goes from 0 (closed) at VIR=0 to 100 (open) at VIR=66.6, then holds open -- so it only needs those two points since TABLE holds the last Y value for any input beyond the last X. HCO2 stays closed until VIR=66.7 then opens fully by VIR=100. Correct answer: TABLE (VIR, HCO1, 0, 0, 66.6, 100) and TABLE (VIR, HCO2, 66.7, 0, 100, 100)" },
+                    { type: "code", q: "AHU1 uses one virtual point (VIR), 0-100%, to sequence three devices without overlap: the heating coil valve (HCO) should modulate closed as VIR rises from 0 to 40%, the mixed air damper (MAO) should modulate closed as VIR rises from 40.1 to 60%, and the cooling coil valve (CCO) should modulate open as VIR rises from 60.1 to 100%. Write the three TABLE statements.", context: "HCO starts fully open at VIR=0 and closes by VIR=40. MAO starts fully open at VIR=40.1 and closes by VIR=60. CCO starts closed at VIR=60.1 and opens fully by VIR=100. Correct answer: TABLE (VIR, HCO, 0, 100, 40, 0) and TABLE (VIR, MAO, 40.1, 100, 60, 0) and TABLE (VIR, CCO, 60.1, 0, 100, 100)" }
                 ]
             },
             "modular-programming": {
-                title: "Practical Exercise -- Modular Programming & Decision Tables",
-                questions: [
-                    { type: "code", q: "Given this sequence of operation -- Occupied: supply/return fans start, heating valve/mixing dampers/cooling valve modulate in sequence to hold discharge temp setpoint. Smoke Safety: smoke detectors de-energize supply/return fans, all dampers/valves fail-safe after the fan de-energizes. Unoccupied: fans stop, cooling and heating valves close, mixing dampers close to outdoor air. -- If a smoke detector trips, which section(s) of the program execute?", context: "Real AHU programs check safety before mode, and safety overrides everything else. Correct answer: only the Smoke Safety section executes (it takes priority over Occupied/Unoccupied logic)." },
-                    { type: "code", q: "Using the same AHU sequence of operation as question 1 (Occupied: supply/return fans start, heating valve/mixing dampers/cooling valve modulate to hold discharge temp setpoint. Smoke Safety: smoke detectors de-energize supply/return fans, all dampers/valves fail-safe. Unoccupied: fans stop, cooling/heating valves close, mixing dampers close to outdoor air) -- during normal daytime (occupied) operation, which section(s) of the program execute?", context: "Correct answer: the Occupied section (fans run, valves/dampers modulate to hold discharge temp setpoint)." },
-                    { type: "code", q: "Using that same AHU sequence of operation, fill in a decision table: for each of Occupied / Unoccupied / Safety-Smoke, what state are Supply Fan, Return Fan, Heating Valve, Mixed Air Damper, and Cooling Coil Valve in?", context: "Sequence recap -- Occupied: supply/return fans start, heating valve/mixing dampers/cooling valve modulate to hold discharge temp setpoint. Smoke Safety: smoke detectors de-energize supply/return fans, all dampers/valves fail-safe after the fan de-energizes. Unoccupied: fans stop, cooling and heating valves close, mixing dampers close to outdoor air. Correct decision table -- Occupied: Supply Fan ON, Return Fan ON, Heating/Cooling valves and Mixed Air Damper modulating to hold setpoint. Unoccupied: Supply Fan OFF, Return Fan OFF, Heating Valve closed, Mixed Air Damper closed to OA, Cooling Valve closed. Safety Smoke: Supply Fan OFF, Return Fan OFF, Heating Valve/Mixed Air Damper/Cooling Valve in their fail-safe position." }
-                ]
+                title: "Modular Programming Knowledge Check",
+                questions: (() => {
+                    const seq = "This AHU's full sequence of operation -- Occupied: supply/return fans start and modulate speed to hold duct static pressure; heating valve, mixing dampers, and cooling valve modulate in sequence to maintain discharge temp setpoint. Unoccupied: fans stop; mixed air damper fully opens and outside/exhaust dampers fully close; heating and cooling valves go fully closed. Night Heating: fans run and modulate for static pressure; heating valve opens to 50%; dampers stay closed to outdoor air; cooling valve stays closed. Night Cooling: fans run and modulate for static pressure; cooling valve opens to 50%; dampers stay closed to outdoor air; heating valve stays closed. Warm-Up: fans run; dampers positioned for 100% return air; cooling valve closed; heating valve fully open. Cool-Down: fans run; dampers positioned for 100% return air; heating valve closed; cooling valve fully open. Safety Smoke: smoke detectors de-energize the supply/return fans; mixed air damper fully opens, outside/exhaust dampers fully close; heating/cooling valves move to their fail-safe position. Safety HSP: a high static pressure switch de-energizes the fans; mixed air damper fully opens, outside/exhaust close; valves move to fail-safe. Safety LTD: a low-temp detector below 38 degrees F de-energizes the fans; mixed air damper fully opens, outside/exhaust close; both valves go fully open. The completed decision table for Fan Tracking (which modulates fan speed to hold duct static pressure) is: Mod during Warm-Up, Cool-Down, Occupied, Night Heating, and Night Cooling -- Off during Unoccupied, Safety Smoke, Safety HSP, and Safety LTD.";
+                    return [
+                        { type: "code", q: `${seq} Question: if a smoke detector trips, which section(s) of the program execute?`, context: "Real AHU programs check safety before mode, and safety always overrides everything else. Correct answer: only the Safety Smoke section executes -- it takes priority over whatever mode (Occupied, Unoccupied, Night Heat/Cool, Warm-Up/Cool-Down) the unit was in when the trip happened." },
+                        { type: "code", q: `${seq} Question: during normal daytime operation (occupied), which section(s) of the program execute?`, context: "Correct answer: only the Occupied section runs (fans start and modulate for static pressure; heating valve, mixing dampers, and cooling valve modulate in sequence to hold discharge temp setpoint)." },
+                        { type: "code", q: `${seq} Question: why is the Fan Tracking section of the program skipped during the Unoccupied and Safety modes?`, context: "Correct answer: Fan Tracking exists to modulate fan speed and hold duct static pressure -- but in Unoccupied and every Safety mode the supply/return fans are stopped or de-energized, so there is no running fan to control. Modulating a fan speed loop with the fan off would be meaningless (and could wind the loop up chasing a static-pressure reading that will never rise), so the Decision Tree simply never routes into the Fan Tracking block in those modes." }
+                    ];
+                })()
+            },
+            "decision-table-exercise": {
+                title: "Complete a Decision Table Exercise",
+                questions: (() => {
+                    const seq = "A simpler AHU sequence of operation -- Occupied: the supply fan and return fan start; the heating coil valve, mixing dampers, and cooling coil valve modulate in sequence without overlap to maintain the discharge temperature setpoint. Smoke Safety: smoke detectors in the supply and return air streams de-energize the supply and return fans upon activation; all dampers and valves move to their fail-safe position after the fan is de-energized. Unoccupied: the supply and return fans stop; the cooling coil valve and the heating coil valve close, and the mixing dampers close to the outdoor air.";
+                    return [
+                        { type: "code", q: `${seq} Fill in a decision table for Supply Fan, Return Fan, Heating Valve, Mixed Air Damper, and Cooling Coil Valve under each of the three modes: Occupied, Unoccupied, and Safety Smoke.`, context: "Correct decision table -- Occupied: Supply Fan ON, Return Fan ON, Heating Valve/Mixed Air Damper/Cooling Coil Valve all modulating (no overlap) to hold discharge temp setpoint. Unoccupied: Supply Fan OFF, Return Fan OFF, Heating Valve closed, Mixed Air Damper closed to outdoor air, Cooling Coil Valve closed. Safety Smoke: Supply Fan OFF, Return Fan OFF, Heating Valve/Mixed Air Damper/Cooling Coil Valve all in their fail-safe position." },
+                        { type: "code", q: `${seq} Based on this sequence, what does completing the decision table teach you about how this air handler behaves across its three modes?`, context: "There's no single correct wording -- look for the student noticing that Occupied is the only mode where equipment actively modulates to a setpoint, that Unoccupied and Safety Smoke both stop the fans, and that fail-safe (Safety Smoke) is a distinct state from simply closed (Unoccupied) -- e.g. mixed air damper closes in Unoccupied but goes to its independent fail-safe position (not necessarily closed) in Safety Smoke." }
+                    ];
+                })()
             }
         };
 
