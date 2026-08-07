@@ -1813,7 +1813,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 questions: [
                     { type: "truefalse", q: "An APOGEE field panel can only hold one running program.", answer: false, explain: "False -- a field panel with APOGEE firmware can contain one OR MORE programs running at the same time." },
                     { type: "fillblank", q: "Each statement is assigned a line number between ___ and ___.", accept: ["1 and 32767", "1 32767", "1-32767", "1 to 32767"], explain: "1 and 32,767 -- that's the full valid range of PPCL line numbers." },
-                    { type: "fillblank", q: "Lines are typically numbered by multiples of ___.", accept: ["10", "ten"], explain: "Ten (10, 20, 30...) -- leaves room to insert new lines later without renumbering everything." },
+                    { type: "fillblank", q: "Lines are typically numbered by multiples of ___.", accept: ["10", "ten"], numeric: true, explain: "Ten (10, 20, 30...) -- leaves room to insert new lines later without renumbering everything." },
                     { type: "fillblank", q: "The maximum number of statements in a PPCL program is limited by the amount of ___ in the field panel.", accept: ["free memory", "memory", "available memory"], explain: "Free memory -- viewable per-panel from the System Profile application on the Insight workstation." },
                     { type: "fillblank", q: "When the last line of the program has been executed, the field panel will ___.", accept: ["return to the first line", "go back to line 1", "return to line 1", "wrap to the first line", "restart at the first line"], explain: "It automatically returns to the first line of the program and keeps processing -- programs run in an endless ascending loop." },
                     { type: "fillblank", q: "Logical point names that use characters other than A-Z, or 0-9 must use ___ in PPCL statements.", accept: ["double quotes", "quotes", "quotation marks"], explain: "Double quotes -- e.g. \"BLDG950.AH01.SAF\"." }
@@ -1822,7 +1822,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             "local-vars": {
                 title: "Local Variables -- Knowledge Check",
                 questions: [
-                    { type: "fillblank", q: "How many $LOC variables come prebuilt in each program?", accept: ["15", "fifteen"], explain: "15 -- $LOC1 through $LOC15, built into every new program automatically." },
+                    { type: "fillblank", q: "How many $LOC variables come prebuilt in each program?", accept: ["15", "fifteen"], numeric: true, explain: "15 -- $LOC1 through $LOC15, built into every new program automatically." },
                     { type: "fillblank", q: "What local variables are specifically used in subroutines?", accept: ["$arg", "arg", "$arg1-$arg15", "$arg1 through $arg15"], explain: "$ARG1 through $ARG15 -- the other 15 built-in locals, reserved for passing values into/out of subroutines." },
                     { type: "truefalse", q: "Local variables can be put directly onto a graphic.", answer: false, explain: "False -- local variables can't be directly displayed on a graphic or commanded from the Commander/Global Commander application, unlike real points." },
                     { type: "fillblank", q: "When referencing a local variable contained inside the same program, ___ must precede the name of the local variable.", accept: ["$", "a dollar sign", "dollar sign"], explain: "A $ (dollar sign) -- e.g. ON ($FANPT) -- so the panel knows it's a local variable, not a system point." },
@@ -1982,10 +1982,17 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 </div>`;
             }
             if (q.type === "fillblank") {
+                // If every accepted answer is purely numeric, this is really a
+                // number question wearing a fillblank type (kept as fillblank
+                // rather than calc so word-form answers like "ten" still work)
+                // -- show a numeric-appropriate placeholder instead of the
+                // generic text one.
+                const isNumeric = q.accept.every(a => /^-?\d+(\.\d+)?$/.test(a.trim()));
+                const placeholder = q.numeric || isNumeric ? "Your numeric answer..." : "Type your answer...";
                 return `<div class="kc-question">
                     ${qHtml}
                     <div class="kc-row">
-                        <input type="text" class="kc-text-input" id="${id}-input" placeholder="Type your answer...">
+                        <input type="text" class="kc-text-input" id="${id}-input" placeholder="${placeholder}">
                         <button type="button" class="kc-btn" onclick="answerFillblank('${id}', ${JSON.stringify(q.accept)})">Check</button>
                     </div>
                     <div class="kc-feedback" id="${id}-fb"></div>
@@ -2096,14 +2103,26 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || "Check failed.");
-                const text = data.feedback || "";
-                const verdictMatch = text.match(/VERDICT:\s*(Correct|Partially Correct|Incorrect)/i);
-                const verdict = verdictMatch ? verdictMatch[1].toLowerCase() : "";
-                const cls = verdict.startsWith("correct") ? "correct" : verdict.startsWith("partially") ? "partial" : "incorrect";
-                const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]*)/i);
-                const feedbackText = feedbackMatch ? feedbackMatch[1].trim() : text;
-                const verdictLabel = verdictMatch ? verdictMatch[1] : "Checked";
-                kcSetFeedback(id, cls, `<strong>${verdictLabel}.</strong> ${feedbackText}`);
+                const raw = data.feedback || "";
+                // Strip markdown emphasis/headers the model might add despite
+                // instructions not to, so the VERDICT/FEEDBACK parse below
+                // doesn't silently fail and mis-classify the answer.
+                const text = raw.replace(/[*_#`]/g, "");
+                let verdictMatch = text.match(/VERDICT:?\s*(Partially Correct|Correct|Incorrect)/i);
+                let verdictLabel = verdictMatch ? verdictMatch[1] : null;
+                if (!verdictLabel) {
+                    // Fallback: the model didn't follow the exact label format --
+                    // search the whole reply for the verdict word instead of
+                    // defaulting to "incorrect" for everything.
+                    if (/incorrect/i.test(text)) verdictLabel = "Incorrect";
+                    else if (/partially\s*correct/i.test(text)) verdictLabel = "Partially Correct";
+                    else if (/\bcorrect\b/i.test(text)) verdictLabel = "Correct";
+                }
+                const verdict = (verdictLabel || "").toLowerCase();
+                const cls = verdict.startsWith("incorrect") ? "incorrect" : verdict.startsWith("partially") ? "partial" : verdict.startsWith("correct") ? "correct" : "pending";
+                const feedbackMatch = text.match(/FEEDBACK:?\s*([\s\S]*)/i);
+                const feedbackText = feedbackMatch ? feedbackMatch[1].trim() : text.trim();
+                kcSetFeedback(id, cls, `<strong>${verdictLabel || "Checked"}.</strong> ${feedbackText}`);
                 kcBumpProgress(id);
             } catch (err) {
                 kcSetFeedback(id, "incorrect", `Couldn't check right now: ${err.message}`);
