@@ -823,6 +823,154 @@ TEMPLATES = [
                     "desc": "Cooldown Enable Command (already exists -- your logic must write to this point)", "type": "DO", "kind": "physical"}
             ]
         }
+    },
+    {
+        "title": "FCU Freeze Protection & Occupancy Dispatch (GOTO Decision Tree)",
+        "difficulty": "expert",
+        "multiLine": True,
+        "systems": FCU_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Freeze Protection & Occupancy Dispatch",
+            "prompt": f"Real FCU programs open with a decision tree just like AHUs do: check safety first, then dispatch to the current mode via GOTO. Build it here. Remember GOTO can only jump forward to a higher line number, never backward, so lay the blocks out in this order. First, check safety: if the Coil Freeze Stat (\"%X%{sys}.FRZ.STAT\") is ON (tripped -- a low-limit safety on the water coil), GOTO line 02000 immediately, skipping mode logic entirely -- freeze protection always overrides occupancy. Otherwise, check Building Occupancy State (\"%X%BLDG.OCC.STATE\", 0 = Occupied, 1 = Unoccupied): if Occupied, GOTO line 01100; if Unoccupied, GOTO line 01200. At line 01100 (the Occupied block), turn ON the Fan (\"%X%{sys}.FAN.ENA\"), then GOTO line 03000 to end the scan. At line 01200 (the Unoccupied block), turn OFF the Fan, then GOTO line 03000. At line 02000 (the Freeze Protection block), turn OFF the Fan and turn ON the Heating Valve (\"%X%{sys}.HTG.VLV\") to its fail-safe fully-open position to keep hot water moving through the coil, then GOTO line 03000. Line 03000 should be a comment marking the end of the scan, and it needs to be the LAST line in your program -- every block above it ends with its own GOTO there so none of them can fall straight through into whatever comes next in the file.",
+            "points": [
+                {"name": f"%X%{sys}.FRZ.STAT",
+                    "desc": "Coil Freeze Stat Trip (low-limit safety, opens below roughly 38 degrees)", "type": "DI", "kind": "physical"},
+                {"name": "%X%BLDG.OCC.STATE",
+                    "desc": "Building-wide Occupancy Mode (0 = Occupied, 1 = Unoccupied) -- a virtual point driven by a scheduling program, shared across all equipment", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.FAN.ENA",
+                    "desc": "Fan Enable Command (already exists -- your logic must write to this point)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.HTG.VLV",
+                    "desc": "Heating Valve Command (already exists -- your logic must write to this point)", "type": "DO", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Exhaust Fan VFD Speed Control by Building Static Pressure",
+        "difficulty": "expert",
+        "multiLine": True,
+        "systems": EF_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Building Static Pressure Control",
+            "prompt": f"{sys}'s speed needs to modulate continuously to control Building Static Pressure rather than simply cycling on and off. Whenever the Exhaust Fan Start Command (\"%X%{sys}.EF.SS\") is ON, execute a LOOP statement to modulate Exhaust Fan Speed Output (\"%X%{sys}.EF.SPD\") (0-100%) to maintain Building Static Pressure (\"%X%{sys}.BSP\") at Setpoint (\"%X%{sys}.BSP.SP\"). A real LOOP call takes 12 positional arguments in this exact order: LOOP(type, pv, cv, sp, pg, ig, dg, st, bias, lo, hi, 0). Use: type=0 (direct acting -- fan speed must increase as building pressure rises above setpoint, pulling more air out to bring it back down, the same direction as the process variable), pv=\"%X%{sys}.BSP\", cv=\"%X%{sys}.EF.SPD\", sp=\"%X%{sys}.BSP.SP\", P Gain (pg)=4.0, I Gain (ig)=0.25, D Gain (dg)=0.0, sample time (st)=1, bias=50.0 (mid-range output when Building Static Pressure is exactly at setpoint), low limit (lo)=20 (never let the fan fully stop while it's commanded to run), high limit (hi)=100, and the final parameter is always 0 (unused). When Exhaust Fan Start Command is OFF, hold Exhaust Fan Speed Output at 0.",
+            "points": [
+                {"name": f"%X%{sys}.EF.SS",
+                    "desc": "Exhaust Fan Start Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.BSP",
+                    "desc": "Building Static Pressure Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.BSP.SP",
+                    "desc": "Building Static Pressure Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.EF.SPD",
+                    "desc": "Exhaust Fan Speed Output (0-100%)", "type": "AO", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Chiller Plant Safety Shutdown Dispatch (GOTO Decision Tree)",
+        "difficulty": "expert",
+        "multiLine": True,
+        "systems": CHILLER_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Safety Shutdown Dispatch",
+            "prompt": f"Chiller safeties always override normal staging -- real chiller plant programs check safety first via a GOTO decision tree, exactly like an AHU program does. Build it here. Remember GOTO can only jump forward to a higher line number, never backward, so lay the blocks out in this order. First, check safety: if Low Refrigerant Pressure Trip (\"%X%{sys}.LOP.TRIP\") is ON OR High Condenser Pressure Trip (\"%X%{sys}.HCP.TRIP\") is ON, GOTO line 02000 immediately, skipping normal staging entirely -- either safety trip shuts the whole plant down. Otherwise, check Chiller Plant Master Enable (\"%X%{sys}.ENA\"): if ON, GOTO line 01100 (Normal Run); if OFF, GOTO line 01200 (Standby). At line 01100 (Normal Run), turn ON Chiller 1 Enable (\"%X%{sys}1.ENA\"), then GOTO line 03000 to end the scan. At line 01200 (Standby), turn OFF Chiller 1 Enable, then GOTO line 03000. At line 02000 (the Safety Shutdown block), turn OFF Chiller 1 Enable and turn ON a Safety Shutdown Alarm (\"%X%{sys}.SAFE.ALM\") -- a virtual point -- then GOTO line 03000. Line 03000 should be a comment marking the end of the scan, and it needs to be the LAST line in your program -- every block above it ends with its own GOTO there so none of them can fall straight through into whatever comes next in the file.",
+            "points": [
+                {"name": f"%X%{sys}.LOP.TRIP",
+                    "desc": "Low Refrigerant Pressure Safety Trip", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.HCP.TRIP",
+                    "desc": "High Condenser Pressure Safety Trip", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.ENA",
+                    "desc": "Chiller Plant Master Enable (already exists)", "type": "BV", "kind": "physical"},
+                {"name": f"%X%{sys}1.ENA",
+                    "desc": "Chiller 1 Enable", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.SAFE.ALM",
+                    "desc": "Safety Shutdown Alarm (virtual point)", "type": "BV", "kind": "virtual"}
+            ]
+        }
+    },
+    {
+        "title": "Cooling Tower Fan VFD Speed Control PID Loop",
+        "difficulty": "expert",
+        "multiLine": True,
+        "systems": CT_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Fan Speed PID Control",
+            "prompt": f"Rather than staged on/off fan speed, {sys}'s fan should modulate continuously via LOOP to hold Condenser Water Supply Temp at setpoint. Whenever Tower Fan Enable (\"%X%{sys}.FAN.ENA\") is ON, execute a LOOP statement to modulate Tower Fan Speed Output (\"%X%{sys}.FAN.SPD\") (0-100%) to maintain Condenser Water Supply Temp (\"%X%{sys}.CWS.T\") at Setpoint (\"%X%{sys}.CWS.T.SP\"). A real LOOP call takes 12 positional arguments in this exact order: LOOP(type, pv, cv, sp, pg, ig, dg, st, bias, lo, hi, 0). Use: type=0 (direct acting -- fan speed must increase as condenser water temp rises above setpoint, the same direction as the process variable), pv=\"%X%{sys}.CWS.T\", cv=\"%X%{sys}.FAN.SPD\", sp=\"%X%{sys}.CWS.T.SP\", P Gain (pg)=4.0, I Gain (ig)=0.2, D Gain (dg)=0.0, sample time (st)=1, bias=50.0 (mid-range output when Condenser Water Supply Temp is exactly at setpoint), low limit (lo)=20 (never let the fan fully stop while enabled, to avoid basin freeze in cold weather), high limit (hi)=100, and the final parameter is always 0 (unused). When Tower Fan Enable is OFF, hold Tower Fan Speed Output at 0.",
+            "points": [
+                {"name": f"%X%{sys}.FAN.ENA",
+                    "desc": "Tower Fan Enable (already exists -- your logic must write to this point)", "type": "BV", "kind": "physical"},
+                {"name": f"%X%{sys}.CWS.T",
+                    "desc": "Condenser Water Supply Temp Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.CWS.T.SP",
+                    "desc": "Condenser Water Supply Temp Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.FAN.SPD",
+                    "desc": "Tower Fan Speed Output (0-100%)", "type": "AO", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Boiler Low Water Cutoff Safety Shutdown Dispatch (GOTO Decision Tree)",
+        "difficulty": "expert",
+        "multiLine": True,
+        "systems": BOILER_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys}1 Low Water Cutoff Safety Dispatch",
+            "prompt": f"Boiler safeties always override normal firing -- real boiler programs check safety first via a GOTO decision tree. Build it here. Remember GOTO can only jump forward to a higher line number, never backward, so lay the blocks out in this order. First, check safety: if the Low Water Cutoff (\"%X%{sys}1.LWCO\") is ON (tripped -- water level below the safe minimum), GOTO line 02000 immediately, skipping normal firing logic entirely -- a low water condition shuts the boiler down regardless of demand. Otherwise, check Boiler 1 Firing Demand (\"%X%{sys}1.DMD\", a virtual point driven by hot water temperature reset logic elsewhere in the program): if ON, GOTO line 01100 (Firing); if OFF, GOTO line 01200 (Standby). At line 01100 (Firing), turn ON Boiler 1 Enable (\"%X%{sys}1.ENA\"), then GOTO line 03000 to end the scan. At line 01200 (Standby), turn OFF Boiler 1 Enable, then GOTO line 03000. At line 02000 (the Safety Shutdown block), turn OFF Boiler 1 Enable and turn ON a Low Water Safety Alarm (\"%X%{sys}1.LWCO.ALM\") -- a virtual point -- then GOTO line 03000. Line 03000 should be a comment marking the end of the scan, and it needs to be the LAST line in your program -- every block above it ends with its own GOTO there so none of them can fall straight through into whatever comes next in the file.",
+            "points": [
+                {"name": f"%X%{sys}1.LWCO",
+                    "desc": "Low Water Cutoff Safety Switch", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}1.DMD",
+                    "desc": "Firing Demand (virtual point, driven by hot water temperature reset logic elsewhere in the program)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}1.ENA",
+                    "desc": "Boiler 1 Enable", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}1.LWCO.ALM",
+                    "desc": "Low Water Safety Alarm (virtual point)", "type": "BV", "kind": "virtual"}
+            ]
+        }
+    },
+    {
+        "title": "CRAC Discharge Air Temp PID Loop with Compressor Staging",
+        "difficulty": "expert",
+        "multiLine": True,
+        "systems": CRAC_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys}201 Discharge Air Temp PID Control & Staging",
+            "prompt": f"{sys}201's cooling needs finer control than a simple on/off compressor -- real CRAC units modulate a hot-gas bypass or EEV to hold discharge air temp precisely, staging a second compressor only under heavy load. Whenever {sys}201 is enabled (\"%X%{sys}201.ENA\" is ON), execute a LOOP statement to modulate the Modulating Cooling Output (\"%X%{sys}201.CLG.MOD\") (0-100%) to maintain Discharge Air Temp (\"%X%{sys}201.DAT\") at Setpoint (\"%X%{sys}201.DAT.SP\"). A real LOOP call takes 12 positional arguments in this exact order: LOOP(type, pv, cv, sp, pg, ig, dg, st, bias, lo, hi, 0). Use: type=0 (direct acting -- cooling output must increase as discharge air temp rises above setpoint, the same direction as the process variable), pv=\"%X%{sys}201.DAT\", cv=\"%X%{sys}201.CLG.MOD\", sp=\"%X%{sys}201.DAT.SP\", P Gain (pg)=3.5, I Gain (ig)=0.2, D Gain (dg)=0.0, sample time (st)=1, bias=30.0 (mid-range output when Discharge Air Temp is exactly at setpoint), low limit (lo)=0, high limit (hi)=100, and the final parameter is always 0 (unused). Separately, if the Modulating Cooling Output stays above 90% continuously, accumulate a Stage-Up Timer (\"%X%{sys}201.STGUP\") by 1 second using SAMPLE(1); once it exceeds 180 seconds, stage ON a second compressor (\"%X%{sys}201.COMP2.ENA\") for extra capacity. If the Modulating Cooling Output drops below 60%, stage OFF Compressor 2 and reset the Stage-Up Timer to 0.",
+            "points": [
+                {"name": f"%X%{sys}201.ENA",
+                    "desc": "CRAC201 Enable Command (already exists)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}201.DAT",
+                    "desc": "Discharge Air Temp Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}201.DAT.SP",
+                    "desc": "Discharge Air Temp Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}201.CLG.MOD",
+                    "desc": "Modulating Cooling Output (0-100%, hot-gas bypass/EEV)", "type": "AO", "kind": "physical"},
+                {"name": f"%X%{sys}201.STGUP",
+                    "desc": "Stage-Up Timer Accumulator (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}201.COMP2.ENA",
+                    "desc": "Compressor 2 Stage Enable", "type": "DO", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "MAU Freezestat Safety Dispatch (GOTO Decision Tree)",
+        "difficulty": "expert",
+        "multiLine": True,
+        "systems": MAU_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Freezestat Safety Dispatch",
+            "prompt": f"Real Siemens MAU programs open with a decision tree just like AHUs do: check safety first, then dispatch to the current mode via GOTO. Build it here. Remember GOTO can only jump forward to a higher line number, never backward, so lay the blocks out in this order. First, check safety: if the Low-Limit Freezestat (\"%X%{sys}.FRZ.STAT\") is ON (tripped -- discharge air temp dropped below the coil freeze threshold), GOTO line 02000 immediately, skipping mode logic entirely -- since this unit is 100% outside air with no return air to temper it, freeze protection has to override everything else. Otherwise, check Building Occupancy State (\"%X%BLDG.OCC.STATE\", 0 = Occupied, 1 = Unoccupied): if Occupied, GOTO line 01100; if Unoccupied, GOTO line 01200. At line 01100 (the Occupied block), turn ON Supply Fan Enable (\"%X%{sys}.SF.ENA\") and turn ON the Heating Valve (\"%X%{sys}.HTG.VLV\") to satisfy Discharge Air Setpoint (keep that as a simple ON for this exercise), then GOTO line 03000 to end the scan. At line 01200 (the Unoccupied block), turn OFF Supply Fan Enable and turn OFF the Heating Valve, then GOTO line 03000. At line 02000 (the Freeze Protection block), turn OFF Supply Fan Enable, turn ON the Heating Valve fully open to keep hot water moving through the coil, and turn ON a Freeze Alarm (\"%X%{sys}.FRZ.ALM\") -- a virtual point -- then GOTO line 03000. Line 03000 should be a comment marking the end of the scan, and it needs to be the LAST line in your program -- every block above it ends with its own GOTO there so none of them can fall straight through into whatever comes next in the file.",
+            "points": [
+                {"name": f"%X%{sys}.FRZ.STAT",
+                    "desc": "Low-Limit Freezestat Trip (discharge air side, no return air to temper this 100% OA unit)", "type": "DI", "kind": "physical"},
+                {"name": "%X%BLDG.OCC.STATE",
+                    "desc": "Building-wide Occupancy Mode (0 = Occupied, 1 = Unoccupied) -- a virtual point driven by a scheduling program, shared across all equipment", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.SF.ENA",
+                    "desc": "Supply Fan Enable Command (already exists -- your logic must write to this point)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.HTG.VLV",
+                    "desc": "Heating Valve Command (already exists -- your logic must write to this point)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.FRZ.ALM",
+                    "desc": "Freeze Alarm (virtual point)", "type": "BV", "kind": "virtual"}
+            ]
+        }
     }
 ]
 
@@ -1319,6 +1467,34 @@ EDIT_TEMPLATES = [
                     "desc": "Hot Water Supply Setpoint (already exists -- your logic must write to this point)", "type": "AV", "kind": "physical"},
                 {"name": f"%X%{sys}.EHT.DMD",
                     "desc": "Emergency Heat Demand Command (new, operator-facing)", "type": "BV", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Compliance Fix: Add High Discharge Temp Safety Shutdown to Air Compressor Bypass Valve Control",
+        "difficulty": "expert",
+        "systems": AC_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Discharge Temp Safety Shutdown",
+            "original_prompt": f"Air Compressor {sys} is water-cooled: whenever the compressor is running (\"%X%{sys}.STAT\" is ON), a LOOP statement modulates the Bypass Valve Output (\"%X%{sys}.BYP.VLV\") (0-100%) to hold Compressor Cooling Water Entering Temp (\"%X%{sys}.CHW.ET\") at Setpoint (\"%X%{sys}.CHW.ET.SP\"). When the compressor is not running, the Bypass Valve Output is held at 0.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}.STAT\" .EQ. ON) THEN LOOP(0,\"%X%{sys}.CHW.ET\",\"%X%{sys}.BYP.VLV\",\"%X%{sys}.CHW.ET.SP\",4.0,0.3,0.0,1,50.0,0,100,0)\n"
+                f"01010 IF (\"%X%{sys}.STAT\" .EQ. OFF) THEN SET(0,\"%X%{sys}.BYP.VLV\")"
+            ),
+            "changed_prompt": f"A high discharge temp sensor was field-installed on the compressor head. Add a safety shutdown: if Compressor Discharge Air Temp (\"%X%{sys}.DAT\") rises above 260 degrees F, force the Bypass Valve Output fully open (100) and turn ON a Discharge Temp Safety Shutdown Alarm (\"%X%{sys}.DAT.SAFE.ALM\") -- skip the LOOP entirely while this condition is active, since driving the bypass fully open for maximum cooling takes priority over trying to hold setpoint. Return to the normal LOOP control above once Discharge Air Temp drops back below 260.",
+            "points": [
+                {"name": f"%X%{sys}.STAT",
+                    "desc": "Compressor Run Status", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.CHW.ET",
+                    "desc": "Compressor Cooling Water Entering Temp", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.CHW.ET.SP",
+                    "desc": "Cooling Water Entering Temp Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.BYP.VLV",
+                    "desc": "Three-Way Bypass Valve Control Output (0-100%)", "type": "AO", "kind": "physical"},
+                {"name": f"%X%{sys}.DAT",
+                    "desc": "Compressor Discharge Air Temp Sensor (already exists on this unit)", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.DAT.SAFE.ALM",
+                    "desc": "Discharge Temp Safety Shutdown Alarm (new, virtual point)", "type": "BV", "kind": "virtual"}
             ]
         }
     }
