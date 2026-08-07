@@ -141,6 +141,52 @@
             border-color: var(--siemens-teal);
         }
 
+        /* Difficulty selector -- styled as Siemens network-hierarchy tiers
+           (FLN device -> ALN/MEC controller -> Management level) instead of
+           a plain colored-circle dropdown. */
+        .diff-toggle {
+            display: flex;
+            gap: 4px;
+        }
+
+        .diff-btn {
+            width: auto;
+            background: #0f1a26;
+            color: #94a3b8;
+            border: 1px solid var(--panel-border);
+            padding: 3px 10px;
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+            line-height: 1.3;
+        }
+
+        .diff-btn:hover {
+            background: #16283b;
+            color: #cbd5e1;
+        }
+
+        .diff-btn.active {
+            background: var(--siemens-teal);
+            color: #fff;
+            border-color: var(--siemens-teal);
+        }
+
+        .diff-btn .diff-tier {
+            display: block;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            opacity: 0.85;
+        }
+
+        .diff-btn .diff-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
         .equip-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
@@ -826,8 +872,6 @@
             <button class="tab-btn active" data-tab="editor" onclick="switchTab('editor')">F1 · Program
                 Editor &amp; Simulator</button>
             <button class="tab-btn" data-tab="diagnostics" onclick="switchTab('diagnostics')">F2 · Diagnostics</button>
-            <button class="tab-btn" data-tab="equipment" onclick="switchTab('equipment')">F3 · Equipment
-                Focus</button>
         </div>
 
         <!-- TAB: LEARN PPCL (beginner mode) -->
@@ -1028,8 +1072,8 @@
                     <p>Head to the <strong>Program Editor &amp; Simulator</strong> tab (F1), pick
                         Beginner/Intermediate/Expert and Write New Code or Edit Existing Code, then click
                         "Generate Scenario." Want to drill one specific piece of equipment instead of a random
-                        mix -- just AHUs, just chillers, just pumps? Use <strong>Equipment Focus</strong> (F3) to
-                        pick the equipment first. Write your
+                        mix -- just AHUs, just chillers, just pumps? Open the <strong>Equipment Focus</strong>
+                        section at the bottom of that same tab and pick a tile. Write your
                         program, click "Save to Panel" to compile it, then "Run Simulation" right next to it to
                         watch it execute against sample values -- you can even force specific starting values
                         first to see exactly how your code reacts. Use <strong>Diagnostics</strong> (F2) for a
@@ -1057,11 +1101,26 @@
                             <button type="button" onclick="clearEquipFocus()" class="equip-focus-clear"
                                 title="Clear equipment focus -- back to Random">✕</button>
                         </span>
-                        <select id="difficultySelect" style="width: auto; margin-bottom: 0; padding: 6px 8px;">
-                            <option value="easy">🟢 Beginner</option>
-                            <option value="medium" selected>🟡 Intermediate</option>
-                            <option value="expert">🔴 Expert</option>
-                        </select>
+                        <div class="diff-toggle" id="difficultyToggle" role="group" aria-label="Difficulty">
+                            <button type="button" class="diff-btn" data-difficulty="easy"
+                                onclick="selectDifficulty('easy')"
+                                title="FLN Device -- Floor Level Network, a single terminal device like a VAV box or fan coil. Simplest scenarios, one piece of equipment (Beginner).">
+                                <span class="diff-tier">FLN Device</span>
+                                <span class="diff-label">Beginner</span>
+                            </button>
+                            <button type="button" class="diff-btn active" data-difficulty="medium"
+                                onclick="selectDifficulty('medium')"
+                                title="ALN Controller (MEC) -- Automation Level Network, a real equipment-level PPCL controller. Multi-line logic, lead-lag, PID (Intermediate).">
+                                <span class="diff-tier">ALN · MEC</span>
+                                <span class="diff-label">Intermediate</span>
+                            </button>
+                            <button type="button" class="diff-btn" data-difficulty="expert"
+                                onclick="selectDifficulty('expert')"
+                                title="Management Level -- building-wide scope, coordinating multiple systems and GOTO decision trees (Expert).">
+                                <span class="diff-tier">Mgmt Level</span>
+                                <span class="diff-label">Expert</span>
+                            </button>
+                        </div>
                         <button onclick="loadScenario()" id="genScenarioBtn" class="btn-gen"
                             style="width: auto; padding: 4px 12px; font-size: 12px;">🎲 Generate
                             Scenario</button>
@@ -1172,6 +1231,27 @@
 
                 <div class="issues-panel" id="issuesPanel" style="display: none;"></div>
             </div>
+
+            <div class="card" style="margin-top: 15px;">
+                <div class="card-title"
+                    style="border: none; margin: 0; display: flex; justify-content: space-between; align-items: center; cursor: pointer;"
+                    onclick="toggleEquipFocusPanel()">
+                    <span>🎯 Equipment Focus -- Targeted Practice (optional)</span>
+                    <button type="button" id="equipFocusPanelToggle" class="win-icon-btn"
+                        style="width: auto; padding: 2px 8px; font-size: 11px;"
+                        onclick="event.stopPropagation(); toggleEquipFocusPanel();">▸ Show</button>
+                </div>
+                <div id="equipFocusPanelBody" style="display: none; margin-top: 10px;">
+                    <p style="color:#94a3b8; font-size:12px; margin-top:-4px;">
+                        Skip the random mix and drill one equipment type at a time. Pick a tile below --
+                        it generates immediately using whichever mode (Write/Edit) and difficulty are set
+                        above, and stays locked to that equipment until you clear it.
+                    </p>
+                    <div class="equip-grid" id="equipGrid"></div>
+                    <div id="equipHint" style="margin-top: 8px; color: #64748b; font-size: 12px;">Pick an
+                        equipment type above, or leave it on Random Mix.</div>
+                </div>
+            </div>
         </div>
 
         <!-- TAB: DIAGNOSTICS -->
@@ -1186,40 +1266,6 @@
                             "Compile & Audit Field Program"...</span>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- TAB: EQUIPMENT FOCUS -->
-        <div class="tab-panel" id="tab-equipment">
-            <div class="card">
-                <div class="card-title">Equipment Focus -- Targeted Practice</div>
-                <p style="color:#94a3b8; font-size:12px; margin-top:-4px;">
-                    Skip the random mix and drill one equipment type at a time. Pick what you want to work
-                    on below, choose Write New Code or Edit Existing Code and (optionally) a difficulty, then
-                    generate -- you'll land in the Program Editor with a scenario pulled only from that
-                    equipment's pool.
-                </p>
-
-                <div class="equip-grid" id="equipGrid"></div>
-
-                <div style="margin-top: 14px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
-                    <div class="mode-toggle" style="margin-bottom: 0;">
-                        <button class="mode-btn active" data-mode="write" onclick="setMode('write')">✏️ Write New
-                            Code</button>
-                        <button class="mode-btn" data-mode="edit" onclick="setMode('edit')">🔧 Edit Existing
-                            Code</button>
-                    </div>
-                    <select id="equipmentDifficultySelect" style="width: auto; margin-bottom: 0; padding: 6px 8px;">
-                        <option value="">Any difficulty</option>
-                        <option value="easy">🟢 Beginner</option>
-                        <option value="medium">🟡 Intermediate</option>
-                        <option value="expert">🔴 Expert</option>
-                    </select>
-                    <button onclick="generateEquipmentScenario()" id="equipGenBtn" class="btn-gen"
-                        style="width: auto; padding: 8px 16px;" disabled>🎲 Generate Scenario</button>
-                </div>
-                <div id="equipHint" style="margin-top: 8px; color: #64748b; font-size: 12px;">Pick an equipment
-                    type above to enable "Generate Scenario."</div>
             </div>
         </div>
 
@@ -1239,18 +1285,25 @@
         let currentScenario = null;
         let activePoints = [];
         let currentMode = "write"; // "write" (blank slate) or "edit" (starter code + changed requirement)
+        let currentDifficulty = "medium"; // "easy" | "medium" | "expert", set via the diff-btn tier selector
+
+        function selectDifficulty(diff) {
+            currentDifficulty = diff;
+            document.querySelectorAll(".diff-btn").forEach(b => b.classList.toggle("active", b.dataset.difficulty === diff));
+        }
 
         // --- EQUIPMENT FOCUS ---
         // Lets a student generate scenarios from ONE equipment pool instead
-        // of the full random mix. Keys must match app.py's EQUIPMENT_CATEGORIES
-        // exactly. equipmentFocus is STICKY once set: generateEquipmentScenario()
-        // sets it and calls the normal loadScenario() so all the usual machinery
-        // (Save to Panel gating, force values, etc.) works unchanged, and it
-        // stays set afterward -- so hitting "Generate Scenario" again on the
-        // Program Editor tab (loadScenario() reads the same global) keeps
-        // pulling from that same equipment pool instead of silently reverting
-        // to the full random mix. A visible badge next to the Generate button
-        // shows the active focus and lets the student clear it back to Random.
+        // of the full random mix. Lives as a collapsible section at the
+        // bottom of the Program Editor tab (folded into it rather than a
+        // separate tab) so it reuses that tab's own mode toggle and
+        // difficulty selector instead of duplicating them. Keys must match
+        // app.py's EQUIPMENT_CATEGORIES exactly. equipmentFocus is STICKY
+        // once set: clicking a tile sets it and immediately generates (via
+        // the normal loadScenario(), so Save to Panel gating / force values
+        // / etc. all work unchanged), and it stays set for later "Generate
+        // Scenario" clicks too -- until the student clicks the "Random Mix"
+        // tile or the ✕ on the badge next to Generate Scenario.
         let equipmentFocus = null;
         const EQUIPMENT_FOCUS_OPTIONS = [
             { key: "ahu", title: "Air Handling Units", sub: "AHU01 / AHU02 / AHU03 -- fans, dampers, coils, static pressure" },
@@ -1268,7 +1321,12 @@
         function renderEquipGrid() {
             const grid = document.getElementById("equipGrid");
             if (!grid) return;
-            grid.innerHTML = EQUIPMENT_FOCUS_OPTIONS.map(opt => `
+            const randomTile = `
+                <button type="button" class="equip-btn active" data-equip="__random__" onclick="selectEquipFocus(null)">
+                    <span class="equip-title">🎲 Random Mix</span>
+                    <span class="equip-sub">Any equipment -- the full scenario pool</span>
+                </button>`;
+            grid.innerHTML = randomTile + EQUIPMENT_FOCUS_OPTIONS.map(opt => `
                 <button type="button" class="equip-btn" data-equip="${opt.key}" onclick="selectEquipFocus('${opt.key}')">
                     <span class="equip-title">${opt.title}</span>
                     <span class="equip-sub">${opt.sub}</span>
@@ -1276,19 +1334,31 @@
             `).join("");
         }
 
+        // Picking a tile (including "Random Mix") is an explicit "give me a
+        // scenario" action, so it immediately generates -- mirroring how the
+        // Generate Scenario button already behaves elsewhere in this tab.
         function selectEquipFocus(key) {
-            document.querySelectorAll(".equip-btn").forEach(b => b.classList.toggle("active", b.dataset.equip === key));
+            const matchAttr = key || "__random__";
+            document.querySelectorAll(".equip-btn").forEach(b => b.classList.toggle("active", b.dataset.equip === matchAttr));
             equipmentFocus = key;
-            document.getElementById("equipGenBtn").disabled = false;
-            const opt = EQUIPMENT_FOCUS_OPTIONS.find(o => o.key === key);
-            document.getElementById("equipHint").textContent =
-                `Ready -- scenarios will be pulled only from ${opt ? opt.title : key}.`;
             updateEquipFocusIndicator();
+            const opt = EQUIPMENT_FOCUS_OPTIONS.find(o => o.key === key);
+            const hint = document.getElementById("equipHint");
+            if (hint) hint.textContent = key
+                ? `Generating from ${opt ? opt.title : key}...`
+                : "Generating a random scenario...";
+            loadScenario().then(() => {
+                if (!hint) return;
+                hint.textContent = key
+                    ? `Locked to ${opt ? opt.title : key} -- pick another tile to switch, or clear the badge above to go back to Random.`
+                    : "Pick an equipment type above, or leave it on Random Mix.";
+            });
         }
 
         // Reflects the sticky equipmentFocus state next to the Program
         // Editor's own "Generate Scenario" button, and lets the student turn
-        // it back off so future generates go back to the full random pool.
+        // it back off (without touching their current code) so future
+        // generates go back to the full random pool.
         function updateEquipFocusIndicator() {
             const badge = document.getElementById("equipFocusBadge");
             if (!badge) return;
@@ -1302,29 +1372,24 @@
             }
         }
 
+        // Badge's ✕ -- clears the filter only, does NOT regenerate (unlike
+        // clicking a grid tile), since the student may still be working on
+        // their current code and shouldn't have it silently wiped out.
         function clearEquipFocus() {
             equipmentFocus = null;
-            document.querySelectorAll(".equip-btn").forEach(b => b.classList.remove("active"));
-            const genBtn = document.getElementById("equipGenBtn");
-            if (genBtn) genBtn.disabled = true;
+            document.querySelectorAll(".equip-btn").forEach(b => b.classList.toggle("active", b.dataset.equip === "__random__"));
             const hint = document.getElementById("equipHint");
-            if (hint) hint.textContent = "Pick an equipment type above to enable \"Generate Scenario.\"";
+            if (hint) hint.textContent = "Pick an equipment type above, or leave it on Random Mix.";
             updateEquipFocusIndicator();
         }
 
-        async function generateEquipmentScenario() {
-            if (!equipmentFocus) return;
-            const mode = document.querySelector('#tab-equipment .mode-btn.active')?.dataset.mode || "write";
-            setMode(mode);
-            const diff = document.getElementById("equipmentDifficultySelect").value;
-            // Keep the Program Editor tab's own difficulty selector in sync
-            // ONLY when a specific tier was chosen -- "Any difficulty" has no
-            // matching option there, so leave that selector untouched rather
-            // than force it into a bad state.
-            if (diff) document.getElementById("difficultySelect").value = diff;
-            switchTab("editor");
-            updateEquipFocusIndicator();
-            await loadScenario(diff);
+        function toggleEquipFocusPanel() {
+            const body = document.getElementById("equipFocusPanelBody");
+            const btn = document.getElementById("equipFocusPanelToggle");
+            if (!body || !btn) return;
+            const collapsed = body.style.display !== "none";
+            body.style.display = collapsed ? "none" : "block";
+            btn.textContent = collapsed ? "▸ Show" : "▾ Hide";
         }
         let hintLevel = 0; // 0 = no hint requested yet for this scenario, 1-3 = progressively deeper
         // Last point values produced by either "Run Simulation" or "Save to
@@ -1799,9 +1864,9 @@
         }
 
         const DIFFICULTY_BADGE = {
-            easy: `<span style="color:#34d399; font-weight:bold;">🟢 BEGINNER</span>`,
-            medium: `<span style="color:#fbbf24; font-weight:bold;">🟡 INTERMEDIATE</span>`,
-            expert: `<span style="color:#f87171; font-weight:bold;">🔴 EXPERT</span>`
+            easy: `<span style="color:#34d399; font-weight:bold;">FLN DEVICE · BEGINNER</span>`,
+            medium: `<span style="color:#fbbf24; font-weight:bold;">ALN · MEC CONTROLLER · INTERMEDIATE</span>`,
+            expert: `<span style="color:#f87171; font-weight:bold;">MANAGEMENT LEVEL · EXPERT</span>`
         };
         const MULTILINE_BADGE = `<span style="color:#38bdf8; font-weight:bold;"> · 📝 MULTI-LINE</span>`;
 
@@ -1810,7 +1875,7 @@
             const promptBox = document.getElementById("promptBox");
             const difficulty = overrideDifficulty !== undefined
                 ? overrideDifficulty
-                : document.getElementById("difficultySelect").value;
+                : currentDifficulty;
             const originalLabel = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = `<span class="spinner"></span>Generating...`;
