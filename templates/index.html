@@ -3634,6 +3634,17 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 subroutineRanges.push({ start: startIdx, end: endIdx });
             });
 
+            // Room temperature (RMT) and its associated comfort setpoints
+            // (cooling/heating/warmup/cooldown setpoints) should never get a
+            // random default outside the range a real occupied space sits
+            // in -- a simulated room at 4 degrees or 97 degrees isn't a
+            // realistic starting point for a training scenario. Other
+            // "SP" points (chilled/hot water setpoints, pressure setpoints,
+            // discharge air setpoints, etc.) are intentionally NOT matched
+            // here since those legitimately range well outside 55-90.
+            const isRoomTempPoint = (name) =>
+                /\.RMT(\.|$)/.test(name) || /\.(CLG|HTG|WU|CD)\.SP(\.ACT)?$/.test(name);
+
             const pointTable = new Map();
             const initialSnapshot = {};
             activePoints.forEach(p => {
@@ -3643,6 +3654,8 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     val = forcedValues[p.name];
                 } else if (["DI", "DO", "BV"].includes(p.type)) {
                     val = Math.random() < 0.5 ? 0 : 1;
+                } else if (isRoomTempPoint(p.name)) {
+                    val = Math.round((55 + Math.random() * 35) * 10) / 10;
                 } else {
                     val = Math.round(Math.random() * 1000) / 10;
                 }
