@@ -884,6 +884,16 @@
             padding: 12px 14px;
         }
 
+        .kc-intro {
+            font-size: 13px;
+            color: #94a3b8;
+            line-height: 1.55;
+            margin: 0 0 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--panel-border);
+            font-style: italic;
+        }
+
         .kc-question {
             padding: 10px 0;
             border-top: 1px solid var(--panel-border);
@@ -1978,24 +1988,20 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             },
             "modular-programming": {
                 title: "Modular Programming Knowledge Check",
-                questions: (() => {
-                    const seq = "This AHU's full sequence of operation -- Occupied: supply/return fans start and modulate speed to hold duct static pressure; heating valve, mixing dampers, and cooling valve modulate in sequence to maintain discharge temp setpoint. Unoccupied: fans stop; mixed air damper fully opens and outside/exhaust dampers fully close; heating and cooling valves go fully closed. Night Heating: fans run and modulate for static pressure; heating valve opens to 50%; dampers stay closed to outdoor air; cooling valve stays closed. Night Cooling: fans run and modulate for static pressure; cooling valve opens to 50%; dampers stay closed to outdoor air; heating valve stays closed. Warm-Up: fans run; dampers positioned for 100% return air; cooling valve closed; heating valve fully open. Cool-Down: fans run; dampers positioned for 100% return air; heating valve closed; cooling valve fully open. Safety Smoke: smoke detectors de-energize the supply/return fans; mixed air damper fully opens, outside/exhaust dampers fully close; heating/cooling valves move to their fail-safe position. Safety HSP: a high static pressure switch de-energizes the fans; mixed air damper fully opens, outside/exhaust close; valves move to fail-safe. Safety LTD: a low-temp detector below 38 degrees F de-energizes the fans; mixed air damper fully opens, outside/exhaust close; both valves go fully open. The completed decision table for Fan Tracking (which modulates fan speed to hold duct static pressure) is: Mod during Warm-Up, Cool-Down, Occupied, Night Heating, and Night Cooling -- Off during Unoccupied, Safety Smoke, Safety HSP, and Safety LTD.";
-                    return [
-                        { type: "code", q: `${seq} Question: if a smoke detector trips, which section(s) of the program execute?`, context: "Real AHU programs check safety before mode, and safety always overrides everything else. Correct answer: only the Safety Smoke section executes -- it takes priority over whatever mode (Occupied, Unoccupied, Night Heat/Cool, Warm-Up/Cool-Down) the unit was in when the trip happened." },
-                        { type: "code", q: `${seq} Question: during normal daytime operation (occupied), which section(s) of the program execute?`, context: "Correct answer: only the Occupied section runs (fans start and modulate for static pressure; heating valve, mixing dampers, and cooling valve modulate in sequence to hold discharge temp setpoint)." },
-                        { type: "code", q: `${seq} Question: why is the Fan Tracking section of the program skipped during the Unoccupied and Safety modes?`, context: "Correct answer: Fan Tracking exists to modulate fan speed and hold duct static pressure -- but in Unoccupied and every Safety mode the supply/return fans are stopped or de-energized, so there is no running fan to control. Modulating a fan speed loop with the fan off would be meaningless (and could wind the loop up chasing a static-pressure reading that will never rise), so the Decision Tree simply never routes into the Fan Tracking block in those modes." }
-                    ];
-                })()
+                intro: "This AHU's full sequence of operation -- Occupied: supply/return fans start and modulate speed to hold duct static pressure; heating valve, mixing dampers, and cooling valve modulate in sequence to maintain discharge temp setpoint. Unoccupied: fans stop; mixed air damper fully opens and outside/exhaust dampers fully close; heating and cooling valves go fully closed. Night Heating: fans run and modulate for static pressure; heating valve opens to 50%; dampers stay closed to outdoor air; cooling valve stays closed. Night Cooling: fans run and modulate for static pressure; cooling valve opens to 50%; dampers stay closed to outdoor air; heating valve stays closed. Warm-Up: fans run; dampers positioned for 100% return air; cooling valve closed; heating valve fully open. Cool-Down: fans run; dampers positioned for 100% return air; heating valve closed; cooling valve fully open. Safety Smoke: smoke detectors de-energize the supply/return fans; mixed air damper fully opens, outside/exhaust dampers fully close; heating/cooling valves move to their fail-safe position. Safety HSP: a high static pressure switch de-energizes the fans; mixed air damper fully opens, outside/exhaust close; valves move to fail-safe. Safety LTD: a low-temp detector below 38 degrees F de-energizes the fans; mixed air damper fully opens, outside/exhaust close; both valves go fully open. The completed decision table for Fan Tracking (which modulates fan speed to hold duct static pressure) is: Mod during Warm-Up, Cool-Down, Occupied, Night Heating, and Night Cooling -- Off during Unoccupied, Safety Smoke, Safety HSP, and Safety LTD.",
+                questions: [
+                    { type: "code", q: "If a smoke detector trips, which section(s) of the program execute?", context: "Real AHU programs check safety before mode, and safety always overrides everything else. Correct answer: only the Safety Smoke section executes -- it takes priority over whatever mode (Occupied, Unoccupied, Night Heat/Cool, Warm-Up/Cool-Down) the unit was in when the trip happened." },
+                    { type: "code", q: "During normal daytime operation (occupied), which section(s) of the program execute?", context: "Correct answer: only the Occupied section runs (fans start and modulate for static pressure; heating valve, mixing dampers, and cooling valve modulate in sequence to hold discharge temp setpoint)." },
+                    { type: "code", q: "Why is the Fan Tracking section of the program skipped during the Unoccupied and Safety modes?", context: "Correct answer: Fan Tracking exists to modulate fan speed and hold duct static pressure -- but in Unoccupied and every Safety mode the supply/return fans are stopped or de-energized, so there is no running fan to control. Modulating a fan speed loop with the fan off would be meaningless (and could wind the loop up chasing a static-pressure reading that will never rise), so the Decision Tree simply never routes into the Fan Tracking block in those modes." }
+                ]
             },
             "decision-table-exercise": {
                 title: "Complete a Decision Table Exercise",
-                questions: (() => {
-                    const seq = "A simpler AHU sequence of operation -- Occupied: the supply fan and return fan start; the heating coil valve, mixing dampers, and cooling coil valve modulate in sequence without overlap to maintain the discharge temperature setpoint. Smoke Safety: smoke detectors in the supply and return air streams de-energize the supply and return fans upon activation; all dampers and valves move to their fail-safe position after the fan is de-energized. Unoccupied: the supply and return fans stop; the cooling coil valve and the heating coil valve close, and the mixing dampers close to the outdoor air.";
-                    return [
-                        { type: "code", q: `${seq} Fill in a decision table for Supply Fan, Return Fan, Heating Valve, Mixed Air Damper, and Cooling Coil Valve under each of the three modes: Occupied, Unoccupied, and Safety Smoke.`, context: "Correct decision table -- Occupied: Supply Fan ON, Return Fan ON, Heating Valve/Mixed Air Damper/Cooling Coil Valve all modulating (no overlap) to hold discharge temp setpoint. Unoccupied: Supply Fan OFF, Return Fan OFF, Heating Valve closed, Mixed Air Damper closed to outdoor air, Cooling Coil Valve closed. Safety Smoke: Supply Fan OFF, Return Fan OFF, Heating Valve/Mixed Air Damper/Cooling Coil Valve all in their fail-safe position." },
-                        { type: "code", q: `${seq} Based on this sequence, what does completing the decision table teach you about how this air handler behaves across its three modes?`, context: "There's no single correct wording -- look for the student noticing that Occupied is the only mode where equipment actively modulates to a setpoint, that Unoccupied and Safety Smoke both stop the fans, and that fail-safe (Safety Smoke) is a distinct state from simply closed (Unoccupied) -- e.g. mixed air damper closes in Unoccupied but goes to its independent fail-safe position (not necessarily closed) in Safety Smoke." }
-                    ];
-                })()
+                intro: "A simpler AHU sequence of operation -- Occupied: the supply fan and return fan start; the heating coil valve, mixing dampers, and cooling coil valve modulate in sequence without overlap to maintain the discharge temperature setpoint. Smoke Safety: smoke detectors in the supply and return air streams de-energize the supply and return fans upon activation; all dampers and valves move to their fail-safe position after the fan is de-energized. Unoccupied: the supply and return fans stop; the cooling coil valve and the heating coil valve close, and the mixing dampers close to the outdoor air.",
+                questions: [
+                    { type: "code", q: "Fill in a decision table for Supply Fan, Return Fan, Heating Valve, Mixed Air Damper, and Cooling Coil Valve under each of the three modes: Occupied, Unoccupied, and Safety Smoke.", context: "Correct decision table -- Occupied: Supply Fan ON, Return Fan ON, Heating Valve/Mixed Air Damper/Cooling Coil Valve all modulating (no overlap) to hold discharge temp setpoint. Unoccupied: Supply Fan OFF, Return Fan OFF, Heating Valve closed, Mixed Air Damper closed to outdoor air, Cooling Coil Valve closed. Safety Smoke: Supply Fan OFF, Return Fan OFF, Heating Valve/Mixed Air Damper/Cooling Coil Valve all in their fail-safe position." },
+                    { type: "code", q: "Based on this sequence, what does completing the decision table teach you about how this air handler behaves across its three modes?", context: "There's no single correct wording -- look for the student noticing that Occupied is the only mode where equipment actively modulates to a setpoint, that Unoccupied and Safety Smoke both stop the fans, and that fail-safe (Safety Smoke) is a distinct state from simply closed (Unoccupied) -- e.g. mixed air damper closes in Unoccupied but goes to its independent fail-safe position (not necessarily closed) in Safety Smoke." }
+                ]
             }
         };
 
@@ -2012,6 +2018,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                             <button type="button" class="kc-toggle">▸ Show</button>
                         </div>
                         <div class="kc-body" style="display:none;">
+                            ${kc.intro ? `<p class="kc-intro">${kc.intro}</p>` : ""}
                             ${kc.questions.map((q, i) => renderKcQuestion(key, i, q)).join("")}
                         </div>
                     </div>
@@ -2049,11 +2056,19 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 // generic text one.
                 const isNumeric = q.accept.every(a => /^-?\d+(\.\d+)?$/.test(a.trim()));
                 const placeholder = q.numeric || isNumeric ? "Your numeric answer..." : "Type your answer...";
+                // JSON.stringify() always wraps each string in double quotes, and
+                // this whole thing gets embedded inside a double-quoted onclick="..."
+                // HTML attribute below -- those embedded quotes would otherwise
+                // terminate the attribute early and silently break the Check
+                // button's click handler for every fillblank question. HTML-escape
+                // them so the browser decodes them back to real quotes before the
+                // onclick text is parsed as JS.
+                const acceptAttr = JSON.stringify(q.accept).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
                 return `<div class="kc-question">
                     ${qHtml}
                     <div class="kc-row">
                         <input type="text" class="kc-text-input" id="${id}-input" placeholder="${placeholder}">
-                        <button type="button" class="kc-btn" onclick="answerFillblank('${id}', ${JSON.stringify(q.accept)})">Check</button>
+                        <button type="button" class="kc-btn" onclick="answerFillblank('${id}', ${acceptAttr})">Check</button>
                     </div>
                     <div class="kc-feedback" id="${id}-fb"></div>
                 </div>`;
