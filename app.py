@@ -299,6 +299,110 @@ TEMPLATES = [
             ]
         }
     },
+    {
+        "title": "Chiller Enable by Building Cooling Demand",
+        "difficulty": "easy",
+        "multiLine": False,
+        "systems": CHILLER_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Enable by Cooling Demand",
+            "prompt": f"If Building Cooling Demand (\"%X%{sys}.DMD\") is ON, turn ON Chiller Plant Master Enable (\"%X%{sys}.ENA\"). Otherwise, turn it OFF.",
+            "points": [
+                {"name": f"%X%{sys}.DMD",
+                    "desc": "Building Cooling Demand (virtual point, driven by a separate plant-load program)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}.ENA",
+                    "desc": "Chiller Plant Master Enable Command", "type": "BV", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Pump Enable by System Demand",
+        "difficulty": "easy",
+        "multiLine": False,
+        "systems": PUMP_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Enable by System Demand",
+            "prompt": f"If System Demand (\"%X%{sys}.DMD\") is ON, turn ON Pump Enable (\"%X%{sys}.ENA\"). Otherwise, turn it OFF.",
+            "points": [
+                {"name": f"%X%{sys}.DMD",
+                    "desc": "System Demand (virtual point, driven by a separate plant-load program)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}.ENA",
+                    "desc": "Pump Enable Command", "type": "DO", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Cooling Tower Basin Heater Freeze Protection",
+        "difficulty": "easy",
+        "multiLine": False,
+        "systems": CT_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Basin Heater Control",
+            "prompt": f"If Basin Water Temp (\"%X%{sys}.BASIN.T\") is less than Freeze Protection Setpoint (\"%X%{sys}.BASIN.T.SP\"), turn ON the Basin Heater (\"%X%{sys}.BASIN.HTR\"). Otherwise, turn it OFF.",
+            "points": [
+                {"name": f"%X%{sys}.BASIN.T",
+                    "desc": "Basin Water Temp Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.BASIN.T.SP",
+                    "desc": "Freeze Protection Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.BASIN.HTR",
+                    "desc": "Basin Heater Command", "type": "DO", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Boiler Enable by Firing Demand",
+        "difficulty": "easy",
+        "multiLine": False,
+        "systems": BOILER_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys}1 Enable by Firing Demand",
+            "prompt": f"If Firing Demand (\"%X%{sys}1.DMD\") is ON, turn ON Boiler 1 Enable (\"%X%{sys}1.ENA\"). Otherwise, turn it OFF.",
+            "points": [
+                {"name": f"%X%{sys}1.DMD",
+                    "desc": "Firing Demand (virtual point, driven by hot water temperature reset logic elsewhere in the program)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}1.ENA",
+                    "desc": "Boiler 1 Enable Command", "type": "DO", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "CRAC Compressor Enable by Room Temperature",
+        "difficulty": "easy",
+        "multiLine": False,
+        "systems": CRAC_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys}201 Compressor Enable",
+            "prompt": f"If Room Temperature (\"%X%{sys}201.RMT\") is greater than Cooling Setpoint (\"%X%{sys}201.CLG.SP\"), turn ON Compressor Enable (\"%X%{sys}201.COMP.ENA\"). Otherwise, turn it OFF.",
+            "points": [
+                {"name": f"%X%{sys}201.RMT",
+                    "desc": "Room Temperature Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}201.CLG.SP",
+                    "desc": "Cooling Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}201.COMP.ENA",
+                    "desc": "Compressor Enable Command", "type": "DO", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Air Compressor Cooling Water High Temp Alarm",
+        "difficulty": "easy",
+        "multiLine": False,
+        "systems": AC_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Cooling Water High Temp Alarm",
+            "prompt": f"If Compressor Run Status (\"%X%{sys}.STAT\") is ON and Cooling Water Entering Temp (\"%X%{sys}.CHW.ET\") is greater than High Limit (\"%X%{sys}.CHW.ET.HI\"), turn ON a Cooling Water High Temp Alarm (\"%X%{sys}.CHW.ET.ALM\"). Otherwise, turn it OFF.",
+            "points": [
+                {"name": f"%X%{sys}.STAT",
+                    "desc": "Compressor Run Status", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.CHW.ET",
+                    "desc": "Cooling Water Entering Temp Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.CHW.ET.HI",
+                    "desc": "Cooling Water High Limit (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.CHW.ET.ALM",
+                    "desc": "Cooling Water High Temp Alarm (virtual point)", "type": "BV", "kind": "virtual"}
+            ]
+        }
+    },
 
     # ---------------- MEDIUM ----------------
     {
@@ -536,6 +640,26 @@ TEMPLATES = [
                     "desc": "Alarm Delay Timer Accumulator (virtual point)", "type": "AV", "kind": "virtual"},
                 {"name": f"%X%{sys}.CWS.T.ALM",
                     "desc": "High Condenser Water Temp Alarm (virtual point)", "type": "BV", "kind": "virtual"}
+            ]
+        }
+    },
+    {
+        "title": "Air Compressor Header Pressure Load/Unload Control",
+        "difficulty": "medium",
+        "multiLine": True,
+        "systems": AC_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Header Pressure Load/Unload Control",
+            "prompt": f"{sys} uses classic load/unload staging to hold discharge header pressure in a band rather than cycling the whole compressor on and off. If Header Pressure (\"%X%{sys}.HDR.PSI\") drops below the Load Setpoint (\"%X%{sys}.HDR.PSI.LO\"), turn ON the Load Solenoid (\"%X%{sys}.LOAD.SOL\") so the compressor starts pumping air into the header again. If Header Pressure rises above the Unload Setpoint (\"%X%{sys}.HDR.PSI.HI\"), turn OFF the Load Solenoid so the compressor unloads (runs unloaded/idles rather than continuing to add air). Leave the Load Solenoid in whatever state it's already in while Header Pressure is between the two setpoints -- don't write to it at all in that band, since that's exactly what creates the deadband and keeps the compressor from short-cycling right at one threshold. HDR.PSI.LO and HDR.PSI.HI are virtual points.",
+            "points": [
+                {"name": f"%X%{sys}.HDR.PSI",
+                    "desc": "Discharge Header Pressure Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.HDR.PSI.LO",
+                    "desc": "Load Setpoint -- Header Pressure below this loads the compressor (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.HDR.PSI.HI",
+                    "desc": "Unload Setpoint -- Header Pressure above this unloads the compressor (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.LOAD.SOL",
+                    "desc": "Load Solenoid Command", "type": "DO", "kind": "physical"}
             ]
         }
     },
