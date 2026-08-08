@@ -1326,6 +1326,77 @@ EDIT_TEMPLATES = [
             ]
         }
     },
+    {
+        "title": "Additional Device: FCU Dirty Filter Switch Added",
+        "difficulty": "easy",
+        "systems": FCU_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Dirty Filter Switch Added",
+            "original_prompt": f"If Room Temperature (\"%X%{sys}.RMT\") is greater than Cooling Setpoint (\"%X%{sys}.RMT.SP\"), turn ON the Cooling Valve (\"%X%{sys}.CLG.VLV\"). Otherwise, turn it OFF.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}.RMT\" .GT. \"%X%{sys}.RMT.SP\") THEN ON (\"%X%{sys}.CLG.VLV\") ELSE OFF (\"%X%{sys}.CLG.VLV\")"
+            ),
+            "changed_prompt": f"A dirty filter switch was field-installed on this unit. If the Filter Status Switch (\"%X%{sys}.FLT.S\") is ON (indicating a dirty/clogged filter), turn ON a Dirty Filter Alarm (\"%X%{sys}.FLT.ALM\", a virtual point) -- this should be independent of the temperature/valve logic above, not tied to it.",
+            "points": [
+                {"name": f"%X%{sys}.RMT",
+                    "desc": "Room Temperature Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.RMT.SP",
+                    "desc": "Cooling Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.CLG.VLV",
+                    "desc": "Cooling Valve Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.FLT.S",
+                    "desc": "Filter Status Switch (new, ON = dirty/clogged)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.FLT.ALM",
+                    "desc": "Dirty Filter Alarm (new, virtual point)", "type": "BV", "kind": "virtual"}
+            ]
+        }
+    },
+    {
+        "title": "Additional Device: Chiller Low Refrigerant Pressure Alarm Added",
+        "difficulty": "easy",
+        "systems": CHILLER_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Low Refrigerant Pressure Alarm Added",
+            "original_prompt": f"If Building Cooling Demand (\"%X%{sys}.DMD\") is ON, turn ON Chiller Plant Master Enable (\"%X%{sys}.ENA\"). Otherwise, turn it OFF.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}.DMD\" .EQ. ON) THEN ON (\"%X%{sys}.ENA\") ELSE OFF (\"%X%{sys}.ENA\")"
+            ),
+            "changed_prompt": f"A low refrigerant pressure switch was field-installed on the compressor. If the Low Refrigerant Pressure Switch (\"%X%{sys}.LOP.SW\") is ON (tripped) while Chiller Plant Master Enable is ON, turn ON a Low Refrigerant Pressure Alarm (\"%X%{sys}.LOP.ALM\", a virtual point). Otherwise, turn it OFF -- this should be independent of and in addition to the demand/enable logic above, not a replacement for it.",
+            "points": [
+                {"name": f"%X%{sys}.DMD",
+                    "desc": "Building Cooling Demand (virtual point, driven by a separate plant-load program)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}.ENA",
+                    "desc": "Chiller Plant Master Enable Command", "type": "BV", "kind": "physical"},
+                {"name": f"%X%{sys}.LOP.SW",
+                    "desc": "Low Refrigerant Pressure Switch (new)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.LOP.ALM",
+                    "desc": "Low Refrigerant Pressure Alarm (new, virtual point)", "type": "BV", "kind": "virtual"}
+            ]
+        }
+    },
+    {
+        "title": "Additional Device: Pump Fail Alarm Added",
+        "difficulty": "easy",
+        "systems": PUMP_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Fail Alarm Added",
+            "original_prompt": f"If System Demand (\"%X%{sys}.DMD\") is ON, turn ON Pump Enable (\"%X%{sys}.ENA\"). Otherwise, turn it OFF.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}.DMD\" .EQ. ON) THEN ON (\"%X%{sys}.ENA\") ELSE OFF (\"%X%{sys}.ENA\")"
+            ),
+            "changed_prompt": f"A run-status feedback contact was field-installed on the pump starter. If Pump Enable (\"%X%{sys}.ENA\") is ON and Pump Run Status (\"%X%{sys}.S\") is OFF, turn ON a Pump Fail Alarm (\"%X%{sys}.ALM\", a virtual point). Otherwise, turn it OFF -- this should be independent of and in addition to the demand/enable logic above, not a replacement for it.",
+            "points": [
+                {"name": f"%X%{sys}.DMD",
+                    "desc": "System Demand (virtual point, driven by a separate plant-load program)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}.ENA",
+                    "desc": "Pump Enable Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.S",
+                    "desc": "Pump Run Status Feedback (new)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.ALM",
+                    "desc": "Pump Fail Alarm (new, virtual point)", "type": "BV", "kind": "virtual"}
+            ]
+        }
+    },
 
     # ---------------- MEDIUM ----------------
     {
@@ -1396,6 +1467,172 @@ EDIT_TEMPLATES = [
                     "desc": "Cooling Valve Command", "type": "DO", "kind": "physical"},
                 {"name": f"%X%{sys}.COND.SW",
                     "desc": "Condensate Overflow Switch (new, DI -- ON = normal, OFF = overflow)", "type": "DI", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Additional Device: Exhaust Fan VOC Full-Speed Latch Added",
+        "difficulty": "medium",
+        "systems": EF_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} VOC Full-Speed Latch Added",
+            "original_prompt": f"Exhaust Fan {sys} has no start/stop command of its own -- it's interlocked with AHU01 and simply follows whatever AHU01's supply fan is doing. If AHU01 Supply Fan Enable (\"%X%AHU01.SF.ENA\") is ON and Louver Position Feedback (\"%X%{sys}.LVR.POS\") is ON (proven open), turn ON the Exhaust Fan Run Output (\"%X%{sys}.EF.RUN\"). Otherwise, turn it OFF.",
+            "starter_code": (
+                f"01000 IF (\"%X%AHU01.SF.ENA\" .EQ. ON .AND. \"%X%{sys}.LVR.POS\" .EQ. ON) THEN ON (\"%X%{sys}.EF.RUN\") ELSE OFF (\"%X%{sys}.EF.RUN\")"
+            ),
+            "changed_prompt": f"A VOC sensor was field-installed to catch fume events that need more airflow than the AHU-interlocked run schedule alone provides. If a VOC Detected alarm (\"%X%{sys}.VOC.DET\") trips ON, latch Full Speed Command (\"%X%{sys}.EF.FULL\") ON and force the Exhaust Fan Run Output ON regardless of the AHU interlock above -- it must stay latched even after the VOC alarm clears, since code requires an operator to manually confirm the space is clear. It should only return to normal AHU-interlocked operation once an operator pulses Manual Reset (\"%X%{sys}.EF.RST\") ON, which clears Full Speed Command back OFF.",
+            "points": [
+                {"name": "%X%AHU01.SF.ENA",
+                    "desc": "AHU01 Supply Fan Enable Command (already exists on the interlocked AHU -- read-only here)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.LVR.POS",
+                    "desc": "Exhaust Louver Position Feedback (proven open)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.EF.RUN",
+                    "desc": "Exhaust Fan Run Output", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.VOC.DET",
+                    "desc": "VOC Detected Alarm (new)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.EF.FULL",
+                    "desc": "Full Speed Command Latch (new, virtual point)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}.EF.RST",
+                    "desc": "Manual Reset Pulse (new, operator-facing)", "type": "BV", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Compliance Fix: Add Minimum Run-Time Protection to Pump Lead-Lag Rotation",
+        "difficulty": "medium",
+        "systems": PUMP_PLANT_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{PLANT_LABELS.get(sys, sys)} Minimum Run-Time Protection",
+            "original_prompt": f"Two pumps in the {sys} plant ({sys}.P1 and {sys}.P2) share standby duty: one is normally lead, the other lag (backup). If the lead pump develops a fault -- Pump 1 Fault (\"%X%{sys}.P1.FLT\") if {sys}.P1 is currently lead, or Pump 2 Fault (\"%X%{sys}.P2.FLT\") if {sys}.P2 is currently lead -- the other pump automatically takes over as lead. Drive Pump 1 Enable (\"%X%{sys}.P1.ENA\") and Pump 2 Enable (\"%X%{sys}.P2.ENA\") accordingly, using a Lead-Lag Status point (\"%X%{sys}.LL.STAT\", 1 = Pump 1 lead, 2 = Pump 2 lead) to track which pump is currently lead.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}.P1.FLT\" .EQ. ON) THEN ON (\"%X%{sys}.P2.ENA\"), OFF (\"%X%{sys}.P1.ENA\"), \"%X%{sys}.LL.STAT\" = 2\n"
+                f"01010 IF (\"%X%{sys}.P2.FLT\" .EQ. ON) THEN ON (\"%X%{sys}.P1.ENA\"), OFF (\"%X%{sys}.P2.ENA\"), \"%X%{sys}.LL.STAT\" = 1"
+            ),
+            "changed_prompt": f"Field techs report the plant is short-cycling on a flickering fault contact. Add minimum run-time protection: accumulate a Run Timer (\"%X%{sys}.RUN.TMR\") by 1 second using SAMPLE(1) whenever the currently-enabled pump is ON, and reset it to 0 whenever the enable/lead pump changes. Only allow a fault-triggered lead-lag swap (either of the two IF statements above) to actually execute once the Run Timer exceeds 300 seconds -- a fault on a pump that hasn't been running at least 5 minutes should be ignored rather than triggering an immediate swap.",
+            "points": [
+                {"name": f"%X%{sys}.P1.FLT",
+                    "desc": "Pump 1 Fault (fault relay contact)", "type": "BV", "kind": "physical"},
+                {"name": f"%X%{sys}.P2.FLT",
+                    "desc": "Pump 2 Fault (fault relay contact)", "type": "BV", "kind": "physical"},
+                {"name": f"%X%{sys}.P1.ENA",
+                    "desc": "Pump 1 Enable Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.P2.ENA",
+                    "desc": "Pump 2 Enable Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.LL.STAT",
+                    "desc": "Lead-Lag Status Code (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.RUN.TMR",
+                    "desc": "Run Timer Accumulator (new, virtual point)", "type": "AV", "kind": "virtual"}
+            ]
+        }
+    },
+    {
+        "title": "Additional Device: Cooling Tower Fan Belt Loss Alarm Added",
+        "difficulty": "medium",
+        "systems": CT_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Fan Belt Loss Alarm Added",
+            "original_prompt": f"If Condenser Water Supply Temp (\"%X%{sys}.CWS.T\") is greater than High Limit (\"%X%{sys}.CWS.T.HI\"), turn ON Tower Fan Enable (\"%X%{sys}.FAN.ENA\") and set Tower Fan Speed Output (\"%X%{sys}.FAN.SPD\") to 100. Otherwise, turn OFF Tower Fan Enable and set Tower Fan Speed Output to 0.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}.CWS.T\" .GT. \"%X%{sys}.CWS.T.HI\") THEN ON (\"%X%{sys}.FAN.ENA\"), SET(100,\"%X%{sys}.FAN.SPD\")\n"
+                f"01010 IF (\"%X%{sys}.CWS.T\" .LE. \"%X%{sys}.CWS.T.HI\") THEN OFF (\"%X%{sys}.FAN.ENA\"), SET(0,\"%X%{sys}.FAN.SPD\")"
+            ),
+            "changed_prompt": f"A current sensing relay was field-installed to catch a broken fan belt (motor runs but the fan itself doesn't turn). Add belt-loss detection: accumulate a Belt Loss Timer (\"%X%{sys}.BELT.TMR\") by 1 second using SAMPLE(1) whenever Tower Fan Enable is ON and the Fan Current Switch (\"%X%{sys}.FAN.CUR\") is OFF (no current draw despite being commanded on). Once the timer exceeds 30 seconds, turn ON a Belt Loss Alarm (\"%X%{sys}.BELT.ALM\", a virtual point). Reset the timer to 0 whenever Fan Current Switch is ON or Tower Fan Enable is OFF.",
+            "points": [
+                {"name": f"%X%{sys}.CWS.T",
+                    "desc": "Condenser Water Supply Temp Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.CWS.T.HI",
+                    "desc": "Condenser Water High Limit (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.FAN.ENA",
+                    "desc": "Tower Fan Enable", "type": "BV", "kind": "physical"},
+                {"name": f"%X%{sys}.FAN.SPD",
+                    "desc": "Tower Fan Speed Output (0-100%)", "type": "AO", "kind": "physical"},
+                {"name": f"%X%{sys}.FAN.CUR",
+                    "desc": "Fan Current Sensing Relay (new, ON = current detected/fan turning)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.BELT.TMR",
+                    "desc": "Belt Loss Timer Accumulator (new, virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.BELT.ALM",
+                    "desc": "Belt Loss Alarm (new, virtual point)", "type": "BV", "kind": "virtual"}
+            ]
+        }
+    },
+    {
+        "title": "Compliance Fix: Add Minimum Run-Time Protection to Boiler Standby Rotation",
+        "difficulty": "medium",
+        "systems": BOILER_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Minimum Run-Time Protection",
+            "original_prompt": f"Two boilers, {sys}1 and {sys}2, provide N+1 redundancy -- normally only one runs, the other sits as a spare. If the Lead Boiler Fault Alarm (\"%X%{sys}.LEAD.FLT\") is ON, the standby boiler takes over: turn ON Boiler 2 Enable (\"%X%{sys}2.ENA\"), turn OFF Boiler 1 Enable (\"%X%{sys}1.ENA\"), and set Lead-Lag Status (\"%X%{sys}.LL.STAT\") to 2.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}.LEAD.FLT\" .EQ. ON) THEN ON (\"%X%{sys}2.ENA\"), OFF (\"%X%{sys}1.ENA\"), \"%X%{sys}.LL.STAT\" = 2"
+            ),
+            "changed_prompt": f"Field techs report the standby rotation is short-cycling on a flickering fault contact. Add minimum run-time protection: accumulate a Run Timer (\"%X%{sys}.RUN.TMR\") by 1 second using SAMPLE(1) whenever the currently-lead boiler is ON, and reset it to 0 whenever Lead-Lag Status changes. Only allow the fault-triggered standby swap above to actually execute once the Run Timer exceeds 300 seconds -- a fault on a boiler that hasn't been running at least 5 minutes should be ignored rather than triggering an immediate swap.",
+            "points": [
+                {"name": f"%X%{sys}.LEAD.FLT",
+                    "desc": "Lead Boiler Fault Alarm (fault relay contact from whichever boiler is currently running)", "type": "BV", "kind": "physical"},
+                {"name": f"%X%{sys}1.ENA",
+                    "desc": "Boiler 1 Enable", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}2.ENA",
+                    "desc": "Boiler 2 Enable", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.LL.STAT",
+                    "desc": "Lead-Lag Status Code (virtual point, 1 = Boiler 1 lead, 2 = Boiler 2 lead)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.RUN.TMR",
+                    "desc": "Run Timer Accumulator (new, virtual point)", "type": "AV", "kind": "virtual"}
+            ]
+        }
+    },
+    {
+        "title": "Compliance Fix: Add a Manual Lead Select Override to CRAC Failover",
+        "difficulty": "medium",
+        "systems": CRAC_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Manual Lead Select Override",
+            "original_prompt": f"{sys}201 and {sys}202 form an N+1 redundant pair serving the same room: normally one runs as lead and the other sits in standby. If {sys}201's Alarm (\"%X%{sys}201.ALM\") is ON while {sys}201 is currently lead, or {sys}202's Alarm (\"%X%{sys}202.ALM\") is ON while {sys}202 is currently lead, the other unit takes over: enable the healthy unit, disable the alarmed one, and update Lead-Lag Status (\"%X%{sys}.LL.STAT\", 1 = {sys}201 lead, 2 = {sys}202 lead) accordingly.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}201.ALM\" .EQ. ON .AND. \"%X%{sys}.LL.STAT\" .EQ. 1) THEN ON (\"%X%{sys}202.ENA\"), OFF (\"%X%{sys}201.ENA\"), \"%X%{sys}.LL.STAT\" = 2\n"
+                f"01010 IF (\"%X%{sys}202.ALM\" .EQ. ON .AND. \"%X%{sys}.LL.STAT\" .EQ. 2) THEN ON (\"%X%{sys}201.ENA\"), OFF (\"%X%{sys}202.ENA\"), \"%X%{sys}.LL.STAT\" = 1"
+            ),
+            "changed_prompt": f"Operations wants a manual override added on top of the existing automatic alarm-based failover: if Manual Lead Select (\"%X%{sys}.MAN.LEAD\") is ON, force {sys}201 Enable ON and {sys}202 Enable OFF, ignoring the alarm-based logic entirely. Only fall back to the existing automatic failover when Manual Lead Select is OFF.",
+            "points": [
+                {"name": f"%X%{sys}201.ALM",
+                    "desc": "CRAC201 Alarm (high/low temp, high/low humidity, or airflow fault)", "type": "BV", "kind": "physical"},
+                {"name": f"%X%{sys}202.ALM",
+                    "desc": "CRAC202 Alarm (high/low temp, high/low humidity, or airflow fault)", "type": "BV", "kind": "physical"},
+                {"name": f"%X%{sys}201.ENA",
+                    "desc": "CRAC201 Enable Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}202.ENA",
+                    "desc": "CRAC202 Enable Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.LL.STAT",
+                    "desc": "Lead-Lag Status Code (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.MAN.LEAD",
+                    "desc": "Manual Lead Select Override (new, operator-facing)", "type": "BV", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Additional Device: Air Compressor High Header Pressure Safety Relief Added",
+        "difficulty": "medium",
+        "systems": AC_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} High Header Pressure Safety Relief Added",
+            "original_prompt": f"{sys} uses load/unload staging to hold discharge header pressure in a band. If Header Pressure (\"%X%{sys}.HDR.PSI\") drops below the Load Setpoint (\"%X%{sys}.HDR.PSI.LO\"), turn ON the Load Solenoid (\"%X%{sys}.LOAD.SOL\"). If Header Pressure rises above the Unload Setpoint (\"%X%{sys}.HDR.PSI.HI\"), turn OFF the Load Solenoid.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}.HDR.PSI\" .LT. \"%X%{sys}.HDR.PSI.LO\") THEN ON (\"%X%{sys}.LOAD.SOL\")\n"
+                f"01010 IF (\"%X%{sys}.HDR.PSI\" .GT. \"%X%{sys}.HDR.PSI.HI\") THEN OFF (\"%X%{sys}.LOAD.SOL\")"
+            ),
+            "changed_prompt": f"A hard safety limit needs to be added on top of the normal load/unload band above. If Header Pressure ever rises above a Safety Relief Limit (\"%X%{sys}.HDR.PSI.SAFE\", well above the normal Unload Setpoint), force the Load Solenoid OFF regardless of the load/unload logic above, and turn ON a High Header Pressure Safety Alarm (\"%X%{sys}.HDR.PSI.ALM\", a virtual point). The alarm should clear and normal load/unload control should resume once Header Pressure drops back below the Safety Relief Limit.",
+            "points": [
+                {"name": f"%X%{sys}.HDR.PSI",
+                    "desc": "Discharge Header Pressure Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.HDR.PSI.LO",
+                    "desc": "Load Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.HDR.PSI.HI",
+                    "desc": "Unload Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.LOAD.SOL",
+                    "desc": "Load Solenoid Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.HDR.PSI.SAFE",
+                    "desc": "Safety Relief Limit (new, virtual point, well above the normal Unload Setpoint)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.HDR.PSI.ALM",
+                    "desc": "High Header Pressure Safety Alarm (new, virtual point)", "type": "BV", "kind": "virtual"}
             ]
         }
     },
@@ -1619,6 +1856,209 @@ EDIT_TEMPLATES = [
                     "desc": "Compressor Discharge Air Temp Sensor (already exists on this unit)", "type": "AI", "kind": "physical"},
                 {"name": f"%X%{sys}.DAT.SAFE.ALM",
                     "desc": "Discharge Temp Safety Shutdown Alarm (new, virtual point)", "type": "BV", "kind": "virtual"}
+            ]
+        }
+    },
+    {
+        "title": "Compliance Fix: Add Condensate Overflow Priority Check to FCU Dispatch",
+        "difficulty": "expert",
+        "systems": FCU_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Condensate Overflow Priority Check",
+            "original_prompt": f"Real FCU programs open with a decision tree: check safety first, then dispatch to the current mode via GOTO. If the Coil Freeze Stat (\"%X%{sys}.FRZ.STAT\") is ON, GOTO line 02000 (Freeze Protection), skipping mode logic entirely. Otherwise, check Building Occupancy State (\"%X%BLDG.OCC.STATE\", 0 = Occupied, 1 = Unoccupied): if Occupied, GOTO line 01100; if Unoccupied, GOTO line 01200. At line 01100 (Occupied), turn ON the Fan (\"%X%{sys}.FAN.ENA\"), then GOTO line 03000. At line 01200 (Unoccupied), turn OFF the Fan, then GOTO line 03000. At line 02000 (Freeze Protection), turn OFF the Fan and turn ON the Heating Valve (\"%X%{sys}.HTG.VLV\") fully open, then GOTO line 03000. Line 03000 is a comment marking the end of the scan and is the last line in the program.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}.FRZ.STAT\" .EQ. ON) THEN GOTO 02000\n"
+                f"01010 IF (\"%X%BLDG.OCC.STATE\" .EQ. 0) THEN GOTO 01100\n"
+                f"01020 IF (\"%X%BLDG.OCC.STATE\" .EQ. 1) THEN GOTO 01200\n"
+                f"01100 ON (\"%X%{sys}.FAN.ENA\")\n"
+                f"01110 GOTO 03000\n"
+                f"01200 OFF (\"%X%{sys}.FAN.ENA\")\n"
+                f"01210 GOTO 03000\n"
+                f"02000 OFF (\"%X%{sys}.FAN.ENA\"), ON (\"%X%{sys}.HTG.VLV\")\n"
+                f"02010 GOTO 03000\n"
+                f"03000 C --- END ---"
+            ),
+            "changed_prompt": f"A condensate overflow switch was field-installed on the drain pan, and it needs to shut the unit down even faster than a freeze trip does -- standing water is an immediate problem, not a seasonal one. Add a new check for Condensate Overflow Switch (\"%X%{sys}.COND.SW\", OFF = overflow) that must run BEFORE the freeze check, forcing the Fan OFF and the Cooling Valve (\"%X%{sys}.CLG.VLV\") OFF whenever it trips, then GOTO straight to line 03000 -- skipping the freeze check and every mode block below it. Since this new check has to run before everything it needs to skip past, and GOTO can only ever jump to a HIGHER line number than the line it's on, you'll need to renumber the existing lines to make room for it at the very top of the program.",
+            "points": [
+                {"name": f"%X%{sys}.FRZ.STAT",
+                    "desc": "Coil Freeze Stat Trip (low-limit safety)", "type": "DI", "kind": "physical"},
+                {"name": "%X%BLDG.OCC.STATE",
+                    "desc": "Building-wide Occupancy Mode (0 = Occupied, 1 = Unoccupied) -- a virtual point driven by a scheduling program, shared across all equipment", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.FAN.ENA",
+                    "desc": "Fan Enable Command (already exists)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.HTG.VLV",
+                    "desc": "Heating Valve Command (already exists)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.COND.SW",
+                    "desc": "Condensate Overflow Switch (new, DI -- ON = normal, OFF = overflow)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.CLG.VLV",
+                    "desc": "Cooling Valve Command (already exists)", "type": "DO", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Compliance Fix: Add Manual Override to Exhaust Fan Speed PID Loop",
+        "difficulty": "expert",
+        "systems": EF_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Manual Override",
+            "original_prompt": f"Whenever the Exhaust Fan Start Command (\"%X%{sys}.EF.SS\") is ON, a LOOP statement modulates Exhaust Fan Speed Output (\"%X%{sys}.EF.SPD\") to maintain Building Static Pressure (\"%X%{sys}.BSP\") at Setpoint (\"%X%{sys}.BSP.SP\"). When Exhaust Fan Start Command is OFF, Exhaust Fan Speed Output is held at 0.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}.EF.SS\" .EQ. ON) THEN LOOP(0,\"%X%{sys}.BSP\",\"%X%{sys}.EF.SPD\",\"%X%{sys}.BSP.SP\",4.0,0.25,0.0,1,50.0,20,100,0)\n"
+                f"01010 IF (\"%X%{sys}.EF.SS\" .EQ. OFF) THEN SET(0,\"%X%{sys}.EF.SPD\")"
+            ),
+            "changed_prompt": f"Commissioning wants a manual/auto override added: if Manual Override (\"%X%{sys}.SPD.MAN\") is ON, skip the LOOP entirely and drive Exhaust Fan Speed Output directly to Manual Speed Command (\"%X%{sys}.SPD.MAN.VAL\") instead -- ignore the building static pressure loop while in manual. When Manual Override is OFF, run the existing automatic control unchanged.",
+            "points": [
+                {"name": f"%X%{sys}.EF.SS",
+                    "desc": "Exhaust Fan Start Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.BSP",
+                    "desc": "Building Static Pressure Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.BSP.SP",
+                    "desc": "Building Static Pressure Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.EF.SPD",
+                    "desc": "Exhaust Fan Speed Output (0-100%)", "type": "AO", "kind": "physical"},
+                {"name": f"%X%{sys}.SPD.MAN",
+                    "desc": "Manual Override Command (new, operator-facing)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.SPD.MAN.VAL",
+                    "desc": "Manual Speed Command (new, field-adjustable by the technician)", "type": "AV", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Compliance Fix: Add Low Water Flow Safety Trip to Chiller Safety Dispatch",
+        "difficulty": "expert",
+        "systems": CHILLER_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Low Water Flow Safety Trip",
+            "original_prompt": f"Chiller safeties override normal staging via a GOTO decision tree. If Low Refrigerant Pressure Trip (\"%X%{sys}.LOP.TRIP\") is ON OR High Condenser Pressure Trip (\"%X%{sys}.HCP.TRIP\") is ON, GOTO line 02000 (Safety Shutdown), skipping normal staging entirely. Otherwise, check Chiller Plant Master Enable (\"%X%{sys}.ENA\"): if ON, GOTO line 01100 (Normal Run); if OFF, GOTO line 01200 (Standby). At line 01100, turn ON Chiller 1 Enable (\"%X%{sys}1.ENA\"), then GOTO line 03000. At line 01200, turn OFF Chiller 1 Enable, then GOTO line 03000. At line 02000, turn OFF Chiller 1 Enable and turn ON a Safety Shutdown Alarm (\"%X%{sys}.SAFE.ALM\"), then GOTO line 03000. Line 03000 is a comment marking the end of the scan and is the last line in the program.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}.LOP.TRIP\" .EQ. ON .OR. \"%X%{sys}.HCP.TRIP\" .EQ. ON) THEN GOTO 02000\n"
+                f"01010 IF (\"%X%{sys}.ENA\" .EQ. ON) THEN GOTO 01100\n"
+                f"01020 IF (\"%X%{sys}.ENA\" .EQ. OFF) THEN GOTO 01200\n"
+                f"01100 ON (\"%X%{sys}1.ENA\")\n"
+                f"01110 GOTO 03000\n"
+                f"01200 OFF (\"%X%{sys}1.ENA\")\n"
+                f"01210 GOTO 03000\n"
+                f"02000 OFF (\"%X%{sys}1.ENA\"), ON (\"%X%{sys}.SAFE.ALM\")\n"
+                f"02010 GOTO 03000\n"
+                f"03000 C --- END ---"
+            ),
+            "changed_prompt": f"A chilled water flow switch was field-installed on the evaporator, and low flow is just as dangerous to the chiller as low refrigerant pressure or high condenser pressure -- it can freeze and split the evaporator tubes. Extend the safety check at line 01000 to also GOTO 02000 whenever the Chilled Water Flow Switch (\"%X%{sys}.CHW.FLOW\") is OFF (no flow proven), using .OR. to add it alongside the two existing trip conditions. No renumbering is needed for this one -- you're extending the existing condition, not inserting a new block.",
+            "points": [
+                {"name": f"%X%{sys}.LOP.TRIP",
+                    "desc": "Low Refrigerant Pressure Safety Trip", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.HCP.TRIP",
+                    "desc": "High Condenser Pressure Safety Trip", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.ENA",
+                    "desc": "Chiller Plant Master Enable (already exists)", "type": "BV", "kind": "physical"},
+                {"name": f"%X%{sys}1.ENA",
+                    "desc": "Chiller 1 Enable", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.SAFE.ALM",
+                    "desc": "Safety Shutdown Alarm (virtual point)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}.CHW.FLOW",
+                    "desc": "Chilled Water Flow Switch (new, DI -- OFF = no flow proven)", "type": "DI", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Additional Device: Cooling Tower Vibration Switch Safety Shutdown Added",
+        "difficulty": "expert",
+        "systems": CT_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Vibration Switch Safety Shutdown Added",
+            "original_prompt": f"Whenever Tower Fan Enable (\"%X%{sys}.FAN.ENA\") is ON, a LOOP statement modulates Tower Fan Speed Output (\"%X%{sys}.FAN.SPD\") to maintain Condenser Water Supply Temp (\"%X%{sys}.CWS.T\") at Setpoint (\"%X%{sys}.CWS.T.SP\"). When Tower Fan Enable is OFF, Tower Fan Speed Output is held at 0.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}.FAN.ENA\" .EQ. ON) THEN LOOP(0,\"%X%{sys}.CWS.T\",\"%X%{sys}.FAN.SPD\",\"%X%{sys}.CWS.T.SP\",4.0,0.2,0.0,1,50.0,20,100,0)\n"
+                f"01010 IF (\"%X%{sys}.FAN.ENA\" .EQ. OFF) THEN SET(0,\"%X%{sys}.FAN.SPD\")"
+            ),
+            "changed_prompt": f"A vibration switch was field-installed on the fan deck to catch bearing failure before it gets worse. Add a safety shutdown: if the Vibration Switch (\"%X%{sys}.VIB.SW\") is ON (tripped), force Tower Fan Speed Output to 0 and turn ON a Vibration Safety Alarm (\"%X%{sys}.VIB.ALM\", a virtual point) -- skip the LOOP entirely while this condition is active, since a vibrating fan needs to stop regardless of what condenser water temp calls for. Return to the normal LOOP control above once the Vibration Switch clears and an operator pulses Manual Reset (\"%X%{sys}.VIB.RST\") ON.",
+            "points": [
+                {"name": f"%X%{sys}.FAN.ENA",
+                    "desc": "Tower Fan Enable (already exists)", "type": "BV", "kind": "physical"},
+                {"name": f"%X%{sys}.CWS.T",
+                    "desc": "Condenser Water Supply Temp Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.CWS.T.SP",
+                    "desc": "Condenser Water Supply Temp Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.FAN.SPD",
+                    "desc": "Tower Fan Speed Output (0-100%)", "type": "AO", "kind": "physical"},
+                {"name": f"%X%{sys}.VIB.SW",
+                    "desc": "Vibration Switch (new, DI -- ON = tripped)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.VIB.ALM",
+                    "desc": "Vibration Safety Alarm (new, virtual point)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}.VIB.RST",
+                    "desc": "Manual Reset Pulse (new, operator-facing)", "type": "BV", "kind": "physical"}
+            ]
+        }
+    },
+    {
+        "title": "Compliance Fix: Add High Stack Temperature Safety Trip to Boiler Safety Dispatch",
+        "difficulty": "expert",
+        "systems": BOILER_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} High Stack Temperature Safety Trip",
+            "original_prompt": f"Boiler safeties override normal firing via a GOTO decision tree. If the Low Water Cutoff (\"%X%{sys}1.LWCO\") is ON, GOTO line 02000 (Safety Shutdown), skipping normal firing logic entirely. Otherwise, check Boiler 1 Firing Demand (\"%X%{sys}1.DMD\"): if ON, GOTO line 01100 (Firing); if OFF, GOTO line 01200 (Standby). At line 01100, turn ON Boiler 1 Enable (\"%X%{sys}1.ENA\"), then GOTO line 03000. At line 01200, turn OFF Boiler 1 Enable, then GOTO line 03000. At line 02000, turn OFF Boiler 1 Enable and turn ON a Low Water Safety Alarm (\"%X%{sys}1.LWCO.ALM\"), then GOTO line 03000. Line 03000 is a comment marking the end of the scan and is the last line in the program.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}1.LWCO\" .EQ. ON) THEN GOTO 02000\n"
+                f"01010 IF (\"%X%{sys}1.DMD\" .EQ. ON) THEN GOTO 01100\n"
+                f"01020 IF (\"%X%{sys}1.DMD\" .EQ. OFF) THEN GOTO 01200\n"
+                f"01100 ON (\"%X%{sys}1.ENA\")\n"
+                f"01110 GOTO 03000\n"
+                f"01200 OFF (\"%X%{sys}1.ENA\")\n"
+                f"01210 GOTO 03000\n"
+                f"02000 OFF (\"%X%{sys}1.ENA\"), ON (\"%X%{sys}1.LWCO.ALM\")\n"
+                f"02010 GOTO 03000\n"
+                f"03000 C --- END ---"
+            ),
+            "changed_prompt": f"A stack temperature sensor was field-installed in the flue to catch an over-fired condition before it damages the heat exchanger. Extend the safety check at line 01000 to also GOTO 02000 whenever Stack Temperature (\"%X%{sys}1.STK.T\") rises above a High Stack Temp Limit (\"%X%{sys}1.STK.T.HI\"), using .OR. to add it alongside the existing low water cutoff condition. No renumbering is needed for this one -- you're extending the existing condition, not inserting a new block.",
+            "points": [
+                {"name": f"%X%{sys}1.LWCO",
+                    "desc": "Low Water Cutoff Safety Switch", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}1.DMD",
+                    "desc": "Firing Demand (virtual point)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}1.ENA",
+                    "desc": "Boiler 1 Enable", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}1.LWCO.ALM",
+                    "desc": "Low Water Safety Alarm (virtual point)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}1.STK.T",
+                    "desc": "Stack Temperature Sensor (new)", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}1.STK.T.HI",
+                    "desc": "High Stack Temp Limit (new, virtual point)", "type": "AV", "kind": "virtual"}
+            ]
+        }
+    },
+    {
+        "title": "Additional Device: CRAC High Head Pressure Safety Shutdown Added",
+        "difficulty": "expert",
+        "systems": CRAC_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys}201 High Head Pressure Safety Shutdown Added",
+            "original_prompt": f"Whenever {sys}201 is enabled (\"%X%{sys}201.ENA\" is ON), a LOOP statement modulates the Modulating Cooling Output (\"%X%{sys}201.CLG.MOD\") to maintain Discharge Air Temp (\"%X%{sys}201.DAT\") at Setpoint (\"%X%{sys}201.DAT.SP\"). Separately, if the Modulating Cooling Output stays above 90% continuously, a Stage-Up Timer (\"%X%{sys}201.STGUP\") accumulates via SAMPLE(1); once it exceeds 180 seconds, a second compressor (\"%X%{sys}201.COMP2.ENA\") stages ON for extra capacity.",
+            "starter_code": (
+                f"01000 IF (\"%X%{sys}201.ENA\" .EQ. ON) THEN LOOP(0,\"%X%{sys}201.DAT\",\"%X%{sys}201.CLG.MOD\",\"%X%{sys}201.DAT.SP\",3.5,0.2,0.0,1,30.0,0,100,0)\n"
+                f"01010 SAMPLE(1) IF (\"%X%{sys}201.CLG.MOD\" .GT. 90) THEN \"%X%{sys}201.STGUP\" = \"%X%{sys}201.STGUP\" + 1\n"
+                f"01020 IF (\"%X%{sys}201.CLG.MOD\" .LE. 90) THEN \"%X%{sys}201.STGUP\" = 0\n"
+                f"01030 IF (\"%X%{sys}201.STGUP\" .GT. 180) THEN ON (\"%X%{sys}201.COMP2.ENA\")\n"
+                f"01040 IF (\"%X%{sys}201.CLG.MOD\" .LT. 60) THEN OFF (\"%X%{sys}201.COMP2.ENA\"), \"%X%{sys}201.STGUP\" = 0"
+            ),
+            "changed_prompt": f"A high head pressure switch was field-installed on the refrigeration circuit. Add a safety shutdown: if the High Head Pressure Switch (\"%X%{sys}201.HHP.SW\") is ON (tripped), force the Modulating Cooling Output to 0, force Compressor 2 OFF, and turn ON a High Head Pressure Alarm (\"%X%{sys}201.HHP.ALM\", a virtual point) -- skip the LOOP and staging logic entirely while this condition is active. Return to normal control once the switch clears and an operator pulses Manual Reset (\"%X%{sys}201.HHP.RST\") ON.",
+            "points": [
+                {"name": f"%X%{sys}201.ENA",
+                    "desc": "CRAC201 Enable Command (already exists)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}201.DAT",
+                    "desc": "Discharge Air Temp Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}201.DAT.SP",
+                    "desc": "Discharge Air Temp Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}201.CLG.MOD",
+                    "desc": "Modulating Cooling Output (0-100%)", "type": "AO", "kind": "physical"},
+                {"name": f"%X%{sys}201.STGUP",
+                    "desc": "Stage-Up Timer Accumulator (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}201.COMP2.ENA",
+                    "desc": "Compressor 2 Stage Enable", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}201.HHP.SW",
+                    "desc": "High Head Pressure Switch (new, DI -- ON = tripped)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}201.HHP.ALM",
+                    "desc": "High Head Pressure Alarm (new, virtual point)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}201.HHP.RST",
+                    "desc": "Manual Reset Pulse (new, operator-facing)", "type": "BV", "kind": "physical"}
             ]
         }
     }
