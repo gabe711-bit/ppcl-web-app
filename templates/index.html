@@ -1790,15 +1790,6 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                             see its points here.</span>
                     </div>
 
-                    <div class="cheat-box" style="margin-top: 12px;">
-                        <strong>Block Color Key:</strong>
-                        <span style="color:#38bdf8;">■ Blue -- normal/auto</span> |
-                        <span style="color:#34d399;">■ Green -- point ON</span> |
-                        <span style="color:#facc15;">■ Yellow -- in alarm</span> |
-                        <span style="color:#f87171;">■ Black -- failed / not doing what the program calls
-                            for</span>
-                    </div>
-
                     <div id="savePanelResult" class="terminal-out"
                         style="display: none; margin-top: 12px; height: auto; max-height: 400px;"></div>
 
@@ -1809,6 +1800,15 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     </div>
 
                     <div id="checkResults" style="margin-top: 12px;"></div>
+
+                    <div class="cheat-box" style="margin-top: 12px;">
+                        <strong>Block Color Key:</strong>
+                        <span style="color:#38bdf8;">■ Blue -- normal/auto</span> |
+                        <span style="color:#34d399;">■ Green -- point ON</span> |
+                        <span style="color:#facc15;">■ Yellow -- in alarm</span> |
+                        <span style="color:#f87171;">■ Black -- failed / not doing what the program calls
+                            for</span>
+                    </div>
                 </div>
             </div>
 
@@ -2593,7 +2593,18 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 try {
                     const cyclesEl = document.getElementById("simCycles");
                     const cycles = cyclesEl ? (parseInt(cyclesEl.value, 10) || 1) : 1;
-                    const result = runSimulation(cycles, getForcedValues());
+                    // Seed every point at its last known value (not a fresh
+                    // random re-roll) before layering the student's actual
+                    // Command(s) on top. Without this, runSimulation() would
+                    // roll a brand-new random starting value for every OTHER
+                    // point on every single Command/Relinquish, making it
+                    // look like changing one point changes them all -- when
+                    // really it's just noise from re-randomizing points
+                    // nobody touched. Only points the program's own logic
+                    // actually reacts to should move; everything else holds
+                    // steady, same as a real field panel.
+                    const seed = Object.assign({}, lastSimSnapshot || {}, getForcedValues());
+                    const result = runSimulation(cycles, seed);
                     lastSimSnapshot = result.finalSnapshot;
                 } catch (err) {
                     // Leave lastSimSnapshot as-is if the program can't run right
@@ -4036,12 +4047,44 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             // (cooling/heating/warmup/cooldown setpoints) should never get a
             // random default outside the range a real occupied space sits
             // in -- a simulated room at 4 degrees or 97 degrees isn't a
-            // realistic starting point for a training scenario. Other
-            // "SP" points (chilled/hot water setpoints, pressure setpoints,
-            // discharge air setpoints, etc.) are intentionally NOT matched
-            // here since those legitimately range well outside 55-90.
+            // realistic starting point for a training scenario.
             const isRoomTempPoint = (name) =>
                 /\.RMT(\.|$)/.test(name) || /\.(CLG|HTG|WU|CD)\.SP(\.ACT)?$/.test(name);
+
+            // Every other kind of HVAC temperature/setpoint point gets its
+            // own realistic band too -- a chilled-water temp defaulting to
+            // 3 degrees, or a hot-water setpoint defaulting to 8 degrees,
+            // is just as unrealistic as a bad room temp default. Matched
+            // against the terminal segment(s) of the point name (plus an
+            // optional trailing .SP/.HI/.LO/.ACT limit or setpoint suffix),
+            // ordered most-specific-medium first since e.g. "CHWS" would
+            // otherwise also match a looser "water temp" pattern.
+            const HVAC_TEMP_RANGES = [
+                // Chilled water supply/return/entering temps + setpoints.
+                { re: /\.(CHWS|CHWR|CHW)\.?(T|ET)(\.(SP|HI|LO|ACT))?$/i, min: 38, max: 60 },
+                // Hot water supply/return temps + setpoints.
+                { re: /\.(HWS|HWR|HW)\.?T?(\.(SP|HI|LO|ACT))?$/i, min: 120, max: 200 },
+                // Condenser water supply/return temps + setpoints.
+                { re: /\.(CWS|CWR)\.T(\.(SP|HI|LO|ACT))?$/i, min: 65, max: 95 },
+                // General HVAC air-side temps (discharge/mixed/outside/
+                // return/entering/leaving/supply air) + their setpoints
+                // and high/low limits -- a supply fan discharge air temp
+                // realistically lands in the same comfort-adjacent 50-90
+                // range as a room temp, never near freezing or scalding.
+                { re: /\.(DAT|MAT|OAT|RAT|EAT|SAT|LAT)(\.(SP|HI|LO|ACT))?$/i, min: 50, max: 90 },
+            ];
+
+            // Percent-style analog points (fan speed commands, valve/
+            // damper positions, humidity) are legitimately 0-100 -- keep
+            // the old wide-open range for these and anything unrecognized
+            // (pressures, flows, misc virtuals) where no single realistic
+            // band applies across every scenario.
+            const randomAnalogDefault = (name) => {
+                for (const { re, min, max } of HVAC_TEMP_RANGES) {
+                    if (re.test(name)) return Math.round((min + Math.random() * (max - min)) * 10) / 10;
+                }
+                return Math.round(Math.random() * 1000) / 10;
+            };
 
             const pointTable = new Map();
             const initialSnapshot = {};
@@ -4055,7 +4098,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 } else if (isRoomTempPoint(p.name)) {
                     val = Math.round((55 + Math.random() * 35) * 10) / 10;
                 } else {
-                    val = Math.round(Math.random() * 1000) / 10;
+                    val = randomAnalogDefault(p.name);
                 }
                 pointTable.set(p.name, val);
                 initialSnapshot[p.name] = val;
