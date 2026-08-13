@@ -642,55 +642,199 @@
             border-bottom: 1px solid var(--panel-border);
         }
 
-        /* --- FORCE STARTING VALUES (interactive simulation panel) --- */
-        .force-value-row {
+        /* --- EDITOR / POINT EDITOR two-column layout --- */
+        .editor-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 400px;
+            gap: 15px;
+            align-items: start;
+        }
+
+        @media (max-width: 1150px) {
+            .editor-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* --- POINT EDITOR (graphical, commissioning-tool-style point blocks) --- */
+        .point-editor-sub {
+            color: #64748b;
+            font-size: 11.5px;
+            margin: -6px 0 10px;
+        }
+
+        .point-block-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 8px;
+        }
+
+        .point-block {
+            position: relative;
+            border-radius: 5px;
+            padding: 8px 9px;
+            cursor: pointer;
+            font-family: 'Consolas', 'Courier New', monospace;
+            border: 1px solid transparent;
+            transition: transform 0.08s ease;
+            user-select: none;
+        }
+
+        .point-block:hover {
+            transform: translateY(-1px);
+        }
+
+        .point-block.pb-blue {
+            background: #0c3a5c;
+            border-color: #1d6fa5;
+        }
+
+        .point-block.pb-green {
+            background: #0a3d24;
+            border-color: #22a35a;
+        }
+
+        .point-block.pb-yellow {
+            background: #4a3b06;
+            border-color: #d4a90c;
+        }
+
+        .point-block.pb-black {
+            background: #050505;
+            border-color: #f87171;
+        }
+
+        .point-block.pb-editing {
+            grid-column: 1 / -1;
+            cursor: default;
+        }
+
+        .pb-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            padding: 5px 8px;
-            font-family: 'Consolas', 'Courier New', monospace;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .pb-name {
+            color: #e2e8f0;
+            font-size: 10.5px;
+            font-weight: 600;
+            word-break: break-all;
+            line-height: 1.3;
+        }
+
+        .pb-tag {
+            flex-shrink: 0;
+            font-size: 8.5px;
+            font-weight: 700;
+            padding: 1px 4px;
+            border-radius: 3px;
+            letter-spacing: 0.5px;
+        }
+
+        .pb-tag.auto {
+            background: rgba(255, 255, 255, 0.12);
+            color: #cbd5e1;
+        }
+
+        .pb-tag.cmd {
+            background: #f59e0b;
+            color: #1c1406;
+        }
+
+        .pb-value {
+            margin-top: 6px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .pb-type {
+            margin-top: 2px;
+            font-size: 9.5px;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+        }
+
+        .point-block.pb-editing .pb-name {
             font-size: 12px;
-            border-bottom: 1px solid #1e293b;
+        }
+
+        .pb-edit-controls {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
             flex-wrap: wrap;
         }
 
-        .force-value-name {
-            color: #c2410c;
-        }
-
-        .force-value-toggle {
-            display: flex;
-            gap: 4px;
-        }
-
-        .fv-btn {
+        .pb-opt {
+            width: auto;
+            padding: 6px 14px;
             background: #0b1622;
             border: 1px solid var(--panel-border);
-            color: #94a3b8;
-            font-size: 11px;
-            padding: 3px 9px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-family: inherit;
+            color: #cbd5e1;
+            font-size: 12px;
         }
 
-        .fv-btn:hover {
+        .pb-opt:hover {
             border-color: var(--siemens-teal);
         }
 
-        .fv-btn.active {
+        .pb-opt.pending {
             background: var(--siemens-teal);
             border-color: var(--siemens-teal);
             color: #fff;
-            font-weight: bold;
         }
 
-        .force-value-input {
-            width: 100px;
+        .pb-edit-input {
+            width: 140px;
             margin-bottom: 0;
-            padding: 4px 8px;
+            padding: 6px 8px;
             font-size: 12px;
+        }
+
+        .pb-edit-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .pb-command-btn {
+            width: auto;
+            padding: 7px 16px;
+            background: #14532d;
+        }
+
+        .pb-command-btn:hover {
+            background: #166534;
+        }
+
+        .pb-relinquish-btn {
+            width: auto;
+            padding: 7px 16px;
+            background: #78350f;
+        }
+
+        .pb-relinquish-btn:hover {
+            background: #92400e;
+        }
+
+        .pb-relinquish-btn:disabled {
+            background: #1e293b;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+
+        .pb-cancel-btn {
+            width: auto;
+            padding: 7px 12px;
+            background: #1e293b;
+        }
+
+        .pb-cancel-btn:hover {
+            background: #334155;
         }
 
         /* --- POINT TYPE REFERENCE (single clickable list) --- */
@@ -1554,100 +1698,115 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
 
             <div class="card" id="notUsedPanel" style="display: none; margin-bottom: 15px;"></div>
 
-            <div class="card">
-                <div class="card-title"
-                    style="display: flex; justify-content: space-between; align-items: center; border: none; margin: 0 0 8px;">
-                    <span>Program Editor</span>
-                    <span id="issuesBadge" style="text-transform: none; letter-spacing: normal; font-weight: bold;">✓
-                        No issues found</span>
-                </div>
-
-                <div class="win-toolbar">
-                    <button class="win-icon-btn" title="Clear Code" onclick="newProgram()">🗑️ Clear Code</button>
-                    <span class="sep"></span>
-                    <button class="win-icon-btn" title="Undo"
-                        onclick="document.getElementById('codeEditor').focus(); document.execCommand('undo')">↶
-                        Undo</button>
-                    <button class="win-icon-btn" title="Redo"
-                        onclick="document.getElementById('codeEditor').focus(); document.execCommand('redo')">↷
-                        Redo</button>
-                    <span class="sep"></span>
-                    <button class="win-icon-btn" title="Save Program to file" onclick="saveProgram()">💾 Save</button>
-                    <button class="win-icon-btn" title="Print Program" onclick="window.print()">🖨️ Print</button>
-                    <span class="sep"></span>
-                    <label for="fontSizeSelect">Font:</label>
-                    <select id="fontSizeSelect" onchange="setEditorFontSize(this.value)">
-                        <option value="11">11</option>
-                        <option value="12">12</option>
-                        <option value="13" selected>13</option>
-                        <option value="14">14</option>
-                        <option value="16">16</option>
-                    </select>
-                </div>
-
-                <div class="editor-wrapper chrome-attached">
-                    <div id="highlightArea"></div>
-                    <textarea id="codeEditor" spellcheck="false" oninput="lintAndHighlight()"
-                        onkeydown="handleEditorKeydown(event)" onscroll="syncScroll()"
-                        onkeyup="updateStatusLine()" onclick="updateStatusLine()" onfocus="seedFirstLineNumber()"
-                        placeholder="Click here to begin — line 01000 starts automatically, +10 on every new line."></textarea>
-                </div>
-
-                <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <button onclick="saveToPanel()" id="saveToPanelBtn" class="btn-gen"
-                        style="width: auto; padding: 8px 16px;">💾 Save to Panel</button>
-                    <button onclick="runSimulationUI()" id="runSimBtn" class="btn-gen" disabled
-                        title="Save to Panel first -- the simulator only runs code the panel has accepted"
-                        style="width: auto; padding: 8px 16px;">▶ Run Simulation</button>
-                    <select id="simCycles" style="width: 100px; margin-bottom: 0;">
-                        <option value="1" selected>1 cycle</option>
-                        <option value="5">5 cycles</option>
-                        <option value="10">10 cycles</option>
-                        <option value="25">25 cycles</option>
-                        <option value="50">50 cycles</option>
-                    </select>
-                    <button onclick="checkProgramUI()" id="checkProgramBtn" class="btn-gen" disabled
-                        title="Save to Panel first -- accuracy checking runs the panel-accepted code through the sequence's test cases"
-                        style="width: auto; padding: 8px 16px; background: #14532d;">✅ Check Program Accuracy</button>
-                    <span style="color: #64748b; font-size: 11px;">Save to Panel compiles and uploads your code
-                        (like a real panel would); Run Simulation re-executes it once and traces exactly what each
-                        line does; Check Program Accuracy runs it against a set of real-world values from the
-                        sequence and confirms your points react the way the sequence calls for.</span>
-                </div>
-                <div id="savePanelResult" class="terminal-out"
-                    style="display: none; margin-top: 10px; height: auto; max-height: 400px;"></div>
-
-                <div id="simResults" style="margin-top: 12px;">
-                    <span style="color: #64748b; font-size: 13px;">Save to Panel to compile your code, then Run
-                        Simulation to trace exactly what it does line by line, or Check Program Accuracy to test it
-                        against the sequence automatically.</span>
-                </div>
-
-                <div id="checkResults" style="margin-top: 12px;"></div>
-
-                <div class="card" id="forceValuesCard" style="margin-top: 12px; display: none;">
+            <div class="editor-layout">
+                <div class="card">
                     <div class="card-title"
-                        style="border: none; margin: 0 0 6px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
-                        <span>Force Starting Values (optional)</span>
-                        <span
-                            style="font-size: 11px; color: #64748b; font-weight: normal; text-transform: none; letter-spacing: normal;">
-                            Set a point here, then Save/Run -- any other point whose logic depends on it will
-                            react exactly the way your code says it should. Leave on "Random" to let the
-                            simulator pick a sample value instead.
-                        </span>
+                        style="display: flex; justify-content: space-between; align-items: center; border: none; margin: 0 0 8px;">
+                        <span>Program Editor</span>
+                        <span id="issuesBadge"
+                            style="text-transform: none; letter-spacing: normal; font-weight: bold;">✓
+                            No issues found</span>
                     </div>
-                    <div id="forceValuesPanel"></div>
+
+                    <div style="margin-bottom: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button onclick="saveToPanel()" id="saveToPanelBtn" class="btn-gen"
+                            style="width: auto; padding: 8px 16px;">💾 Save to Panel</button>
+                        <button onclick="runSimulationUI()" id="runSimBtn" class="btn-gen" disabled
+                            title="Save to Panel first -- the simulator only runs code the panel has accepted"
+                            style="width: auto; padding: 8px 16px;">▶ Run Simulation</button>
+                        <select id="simCycles" style="width: 100px; margin-bottom: 0;">
+                            <option value="1" selected>1 cycle</option>
+                            <option value="5">5 cycles</option>
+                            <option value="10">10 cycles</option>
+                            <option value="25">25 cycles</option>
+                            <option value="50">50 cycles</option>
+                        </select>
+                        <button onclick="checkProgramUI()" id="checkProgramBtn" class="btn-gen" disabled
+                            title="Save to Panel first -- accuracy checking runs the panel-accepted code through the sequence's test cases"
+                            style="width: auto; padding: 8px 16px; background: #14532d;">✅ Check Program
+                            Accuracy</button>
+                        <span style="color: #64748b; font-size: 11px;">Save to Panel compiles and uploads your code
+                            (like a real panel would); Run Simulation re-executes it once and traces exactly what
+                            each line does; Check Program Accuracy runs it against a set of real-world values from
+                            the sequence and confirms your points react the way the sequence calls for. Results
+                            appear in the Point Editor panel to the right.</span>
+                    </div>
+
+                    <div class="win-toolbar">
+                        <button class="win-icon-btn" title="Clear Code" onclick="newProgram()">🗑️ Clear Code</button>
+                        <span class="sep"></span>
+                        <button class="win-icon-btn" title="Undo"
+                            onclick="document.getElementById('codeEditor').focus(); document.execCommand('undo')">↶
+                            Undo</button>
+                        <button class="win-icon-btn" title="Redo"
+                            onclick="document.getElementById('codeEditor').focus(); document.execCommand('redo')">↷
+                            Redo</button>
+                        <span class="sep"></span>
+                        <button class="win-icon-btn" title="Save Program to file" onclick="saveProgram()">💾
+                            Save</button>
+                        <button class="win-icon-btn" title="Print Program" onclick="window.print()">🖨️
+                            Print</button>
+                        <span class="sep"></span>
+                        <label for="fontSizeSelect">Font:</label>
+                        <select id="fontSizeSelect" onchange="setEditorFontSize(this.value)">
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                            <option value="13" selected>13</option>
+                            <option value="14">14</option>
+                            <option value="16">16</option>
+                        </select>
+                    </div>
+
+                    <div class="editor-wrapper chrome-attached">
+                        <div id="highlightArea"></div>
+                        <textarea id="codeEditor" spellcheck="false" oninput="lintAndHighlight()"
+                            onkeydown="handleEditorKeydown(event)" onscroll="syncScroll()"
+                            onkeyup="updateStatusLine()" onclick="updateStatusLine()" onfocus="seedFirstLineNumber()"
+                            placeholder="Click here to begin — line 01000 starts automatically, +10 on every new line."></textarea>
+                    </div>
+
+                    <div class="cheat-box">
+                        <strong>Color Key:</strong>
+                        <span class="syn-point">■ Black (Points, $LOC/$ARG, Operators)</span> |
+                        <span class="syn-cond">■ Blue (IF/THEN/ELSE + ON/OFF/SET as commands)</span> |
+                        <span class="syn-action">■ Maroon (ON/OFF as a value)</span> |
+                        <span class="syn-comment">■ Green (Comments)</span>
+                    </div>
+
+                    <div class="issues-panel" id="issuesPanel" style="display: none;"></div>
                 </div>
 
-                <div class="cheat-box">
-                    <strong>Color Key:</strong>
-                    <span class="syn-point">■ Black (Points, $LOC/$ARG, Operators)</span> |
-                    <span class="syn-cond">■ Blue (IF/THEN/ELSE + ON/OFF/SET as commands)</span> |
-                    <span class="syn-action">■ Maroon (ON/OFF as a value)</span> |
-                    <span class="syn-comment">■ Green (Comments)</span>
-                </div>
+                <div class="card" id="pointEditorCard">
+                    <div class="card-title" style="border: none; margin: 0 0 4px;">Point Editor</div>
+                    <p class="point-editor-sub">Click a point block to set a value, then <strong>Command</strong> it
+                        -- just like a real commissioning tool. <strong>Relinquish</strong> hands it back to auto
+                        (program-driven).</p>
 
-                <div class="issues-panel" id="issuesPanel" style="display: none;"></div>
+                    <div class="point-block-grid" id="pointBlockGrid">
+                        <span style="color:#64748b; font-size:12px;">No points loaded yet -- generate a scenario to
+                            see its points here.</span>
+                    </div>
+
+                    <div class="cheat-box" style="margin-top: 12px;">
+                        <strong>Block Color Key:</strong>
+                        <span style="color:#38bdf8;">■ Blue -- normal/auto</span> |
+                        <span style="color:#34d399;">■ Green -- point ON</span> |
+                        <span style="color:#facc15;">■ Yellow -- in alarm</span> |
+                        <span style="color:#f87171;">■ Black -- failed / not doing what the program calls
+                            for</span>
+                    </div>
+
+                    <div id="savePanelResult" class="terminal-out"
+                        style="display: none; margin-top: 12px; height: auto; max-height: 400px;"></div>
+
+                    <div id="simResults" style="margin-top: 12px;">
+                        <span style="color: #64748b; font-size: 13px;">Save to Panel to compile your code, then Run
+                            Simulation to trace exactly what it does line by line, or Check Program Accuracy to test
+                            it against the sequence automatically.</span>
+                    </div>
+
+                    <div id="checkResults" style="margin-top: 12px;"></div>
+                </div>
             </div>
 
             <div class="card" style="margin-top: 15px;">
@@ -2227,72 +2386,219 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             if (btn) btn.disabled = !accepted;
             const checkBtn = document.getElementById("checkProgramBtn");
             if (checkBtn) checkBtn.disabled = !accepted;
-        }
-
-        // --- FORCE STARTING VALUES ---
-        // Lets a student pin specific points to a known value before running
-        // the simulation instead of always getting a random starting state.
-        // Everything downstream still runs through the student's own parsed
-        // code, so forcing one point (e.g. a smoke detector ON) naturally
-        // cascades into whatever that code does with it -- no special-casing
-        // needed here beyond feeding these into runSimulation()'s initial
-        // point table.
-        let forcedValueState = {};
-
-        function renderForceValuesPanel() {
-            const card = document.getElementById("forceValuesCard");
-            const panel = document.getElementById("forceValuesPanel");
-            if (!card || !panel) return;
-
-            forcedValueState = {};
-
-            if (!activePoints.length) {
-                card.style.display = "none";
-                panel.innerHTML = "";
-                return;
+            if (!accepted) {
+                // The code changed (or the panel rejected it) since the last
+                // Check Program Accuracy run, so any "failed" (black) blocks
+                // from that stale run no longer mean anything -- clear them.
+                lastCheckMismatches = new Set();
+                renderPointBlocks();
             }
-            card.style.display = "block";
-
-            panel.innerHTML = activePoints.map(p => {
-                if (["DI", "DO", "BV"].includes(p.type)) {
-                    return `<div class="force-value-row">
-                        <span class="force-value-name">"${p.name}"</span>
-                        <div class="force-value-toggle" data-point="${p.name}">
-                            <button type="button" class="fv-btn active" data-val="">Random</button>
-                            <button type="button" class="fv-btn" data-val="1">${formatPointValue(p, 1)}</button>
-                            <button type="button" class="fv-btn" data-val="0">${formatPointValue(p, 0)}</button>
-                        </div>
-                    </div>`;
-                }
-                return `<div class="force-value-row">
-                    <span class="force-value-name">"${p.name}"</span>
-                    <input type="number" class="force-value-input" data-point="${p.name}" placeholder="random" step="0.1">
-                </div>`;
-            }).join("");
-
-            panel.querySelectorAll(".force-value-toggle").forEach(group => {
-                const name = group.dataset.point;
-                group.querySelectorAll(".fv-btn").forEach(btn => {
-                    btn.addEventListener("click", () => {
-                        group.querySelectorAll(".fv-btn").forEach(b => b.classList.remove("active"));
-                        btn.classList.add("active");
-                        if (btn.dataset.val === "") delete forcedValueState[name];
-                        else forcedValueState[name] = Number(btn.dataset.val);
-                    });
-                });
-            });
-
-            panel.querySelectorAll(".force-value-input").forEach(input => {
-                input.addEventListener("input", () => {
-                    const name = input.dataset.point;
-                    if (input.value === "") delete forcedValueState[name];
-                    else forcedValueState[name] = Number(input.value);
-                });
-            });
         }
+
+        // --- POINT EDITOR (graphical, commissioning-tool-style blocks) ---
+        // Replaces the old plain "Force Starting Values" row list. Every
+        // point in the current scenario is its own colored block showing
+        // its live value. Clicking a block opens an inline editor -- pick
+        // or type a value, then click Command to actually apply it, two
+        // steps rather than instant-on-change, mirroring how a real
+        // commissioning tool makes you press the value and then Command it.
+        // Relinquish clears the override so the point goes back to auto:
+        // driven purely by whatever the student's program does with it.
+        // The override map (forcedValueState) doubles as the "force" input
+        // to runSimulation(), exactly like the old force-values list did,
+        // so Save to Panel / Run Simulation / Check Program Accuracy all
+        // honor a Command automatically with no separate plumbing.
+        let forcedValueState = {};
+        let editingPointName = null;
+        let editingPendingValue = null;
+        // Point names whose last Check Program Accuracy run came back wrong
+        // -- i.e. the program didn't drive them the way the sequence calls
+        // for. Colors that block black until the next successful Save to
+        // Panel (a code edit invalidates it, same as panelAccepted).
+        let lastCheckMismatches = new Set();
 
         function getForcedValues() {
             return { ...forcedValueState };
+        }
+
+        // Only points whose terminal segment is an alarm flag should read
+        // as an "alarm" state (yellow) -- everything else is just a plain
+        // ON/OFF or OPEN/CLOSED condition (green when on, blue when off).
+        const ALARM_POINT_RE = /\.ALM(\.|$)/i;
+
+        function pointBlockColorClass(p, rawValue) {
+            if (lastCheckMismatches.has(p.name)) return "pb-black";
+            if (["DI", "DO", "BV"].includes(p.type)) {
+                const isOn = Number(rawValue) === 1;
+                if (ALARM_POINT_RE.test(p.name)) return isOn ? "pb-yellow" : "pb-blue";
+                return isOn ? "pb-green" : "pb-blue";
+            }
+            return "pb-blue";
+        }
+
+        function currentPointDisplayValue(p) {
+            if (Object.prototype.hasOwnProperty.call(forcedValueState, p.name)) return forcedValueState[p.name];
+            if (lastSimSnapshot && Object.prototype.hasOwnProperty.call(lastSimSnapshot, p.name)) return lastSimSnapshot[p.name];
+            return null;
+        }
+
+        function resetPointEditor() {
+            forcedValueState = {};
+            editingPointName = null;
+            editingPendingValue = null;
+            lastCheckMismatches = new Set();
+            renderPointBlocks();
+        }
+
+        function renderPointBlocks() {
+            const grid = document.getElementById("pointBlockGrid");
+            if (!grid) return;
+
+            if (!activePoints.length) {
+                grid.innerHTML = `<span style="color:#64748b; font-size:12px;">No points loaded yet -- generate a scenario to see its points here.</span>`;
+                return;
+            }
+
+            grid.innerHTML = activePoints.map(p => renderOnePointBlock(p)).join("");
+
+            grid.querySelectorAll(".point-block[data-point]").forEach(el => {
+                el.addEventListener("click", () => {
+                    if (el.classList.contains("pb-editing")) return;
+                    openPointEditor(el.dataset.point);
+                });
+            });
+
+            wirePointEditorControls();
+        }
+
+        function renderOnePointBlock(p) {
+            const isEditing = editingPointName === p.name;
+            const rawValue = currentPointDisplayValue(p);
+            const isOverridden = Object.prototype.hasOwnProperty.call(forcedValueState, p.name);
+            const colorClass = pointBlockColorClass(p, rawValue);
+            const displayValue = rawValue === null ? "--" : formatPointValue(p, rawValue);
+            const tag = `<span class="pb-tag ${isOverridden ? "cmd" : "auto"}">${isOverridden ? "CMD" : "AUTO"}</span>`;
+
+            if (!isEditing) {
+                return `<div class="point-block ${colorClass}" data-point="${p.name}" title="${(p.desc || "").replace(/"/g, "&quot;")}">
+                    <div class="pb-header"><span class="pb-name">"${p.name}"</span>${tag}</div>
+                    <div class="pb-value">${displayValue}</div>
+                    <div class="pb-type">${p.type}</div>
+                </div>`;
+            }
+
+            const isBinary = ["DI", "DO", "BV"].includes(p.type);
+            const controlsHtml = isBinary
+                ? (() => {
+                    const pending = editingPendingValue != null ? editingPendingValue : (rawValue !== null ? Number(rawValue) : 1);
+                    return `<div class="pb-edit-controls">
+                        <button type="button" class="pb-opt ${Number(pending) === 1 ? "pending" : ""}" data-val="1">${formatPointValue(p, 1)}</button>
+                        <button type="button" class="pb-opt ${Number(pending) === 0 ? "pending" : ""}" data-val="0">${formatPointValue(p, 0)}</button>
+                    </div>`;
+                })()
+                : (() => {
+                    const inputVal = editingPendingValue != null ? editingPendingValue : (rawValue !== null ? rawValue : "");
+                    return `<input type="number" class="pb-edit-input" data-role="value-input" value="${inputVal}" step="0.1" placeholder="value">`;
+                })();
+
+            return `<div class="point-block pb-editing ${colorClass}" data-point="${p.name}">
+                <div class="pb-header"><span class="pb-name">"${p.name}"</span>${tag}</div>
+                <div style="color:#94a3b8; font-size:11px; margin-top:4px;">Currently: ${displayValue}</div>
+                ${controlsHtml}
+                <div class="pb-edit-actions">
+                    <button type="button" class="pb-command-btn" data-action="command">Command</button>
+                    <button type="button" class="pb-relinquish-btn" data-action="relinquish" ${!isOverridden ? "disabled" : ""}>Relinquish</button>
+                    <button type="button" class="pb-cancel-btn" data-action="cancel">✕ Close</button>
+                </div>
+            </div>`;
+        }
+
+        function openPointEditor(name) {
+            editingPointName = name;
+            editingPendingValue = null;
+            renderPointBlocks();
+        }
+
+        function closePointEditor() {
+            editingPointName = null;
+            editingPendingValue = null;
+            renderPointBlocks();
+        }
+
+        function wirePointEditorControls() {
+            const grid = document.getElementById("pointBlockGrid");
+            if (!grid) return;
+            const editingBlock = grid.querySelector(".point-block.pb-editing");
+            if (!editingBlock) return;
+            const name = editingBlock.dataset.point;
+
+            editingBlock.querySelectorAll(".pb-opt").forEach(btn => {
+                btn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    editingPendingValue = Number(btn.dataset.val);
+                    renderPointBlocks();
+                });
+            });
+
+            const input = editingBlock.querySelector('[data-role="value-input"]');
+            if (input) {
+                input.addEventListener("click", (e) => e.stopPropagation());
+                input.addEventListener("input", () => {
+                    editingPendingValue = input.value === "" ? null : Number(input.value);
+                });
+            }
+
+            editingBlock.querySelectorAll("[data-action]").forEach(btn => {
+                btn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const action = btn.dataset.action;
+                    if (action === "command") commandPoint(name);
+                    else if (action === "relinquish") relinquishPoint(name);
+                    else if (action === "cancel") closePointEditor();
+                });
+            });
+        }
+
+        // Applies (or clears) a manual override on a point -- pressing a
+        // value then hitting Command, exactly like a real panel's point
+        // graphic. If the panel has already accepted a program, also
+        // re-runs a quick simulation right away so the block grid updates
+        // live instead of waiting for the student to click Run Simulation.
+        function commandPoint(name) {
+            const p = activePoints.find(pt => pt.name === name);
+            if (!p) return;
+            let value = editingPendingValue;
+            if (value === null || value === undefined || isNaN(value)) {
+                const current = currentPointDisplayValue(p);
+                value = current !== null ? Number(current) : (["DI", "DO", "BV"].includes(p.type) ? 1 : 0);
+            }
+            forcedValueState[name] = value;
+            editingPointName = null;
+            editingPendingValue = null;
+            refreshAfterOverrideChange();
+        }
+
+        function relinquishPoint(name) {
+            delete forcedValueState[name];
+            editingPointName = null;
+            editingPendingValue = null;
+            refreshAfterOverrideChange();
+        }
+
+        function refreshAfterOverrideChange() {
+            if (panelAccepted) {
+                try {
+                    const cyclesEl = document.getElementById("simCycles");
+                    const cycles = cyclesEl ? (parseInt(cyclesEl.value, 10) || 1) : 1;
+                    const result = runSimulation(cycles, getForcedValues());
+                    lastSimSnapshot = result.finalSnapshot;
+                } catch (err) {
+                    // Leave lastSimSnapshot as-is if the program can't run right
+                    // now -- the block just shows its last-known value until
+                    // the next successful Run Simulation / Save to Panel.
+                }
+            }
+            renderPointBlocks();
         }
 
         function setMode(mode) {
@@ -2767,7 +3073,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 const data = await res.json();
                 activePoints = [...data.points];
                 setPanelAccepted(false);
-                renderForceValuesPanel();
+                resetPointEditor();
 
                 const badge = DIFFICULTY_BADGE[data.difficulty] || "";
 
@@ -2912,6 +3218,16 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             const passCount = results.filter(r => r.pass).length;
             const total = results.length;
             const allPass = passCount === total;
+
+            // Any point that came back wrong in any test case turns its
+            // Point Editor block black -- "the user wrote the program
+            // wrong, so the point isn't doing what it's supposed to do."
+            const mismatches = new Set();
+            results.forEach(r => {
+                (r.details || []).forEach(d => { if (!d.ok) mismatches.add(d.pointName); });
+            });
+            lastCheckMismatches = mismatches;
+            renderPointBlocks();
 
             let html = `<div class="sim-section-title">Automated Accuracy Check -- ${passCount}/${total} passed</div>`;
             html += `<div style="margin:6px 0 10px; padding:8px 10px; border-radius:4px; font-weight:bold; ${allPass
@@ -3786,6 +4102,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 const result = runSimulation(cycles, getForcedValues());
                 lastSimSnapshot = result.finalSnapshot;
                 renderSimulationResults(result);
+                renderPointBlocks();
             } catch (err) {
                 results.innerHTML = `<div class="sim-error-box">Simulation crashed unexpectedly: ${err.message}</div>`;
             } finally {
