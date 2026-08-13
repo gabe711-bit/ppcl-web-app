@@ -2538,12 +2538,23 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 return;
             }
 
-            const rows = missingPoints.map(p => `
-                <div style="padding:5px 0; border-top:1px solid var(--panel-border); font-size:12.5px;">
-                    <span style="color:#c2410c;">"${p.name}"</span>
-                    <span style="color:#64748b;"> (${p.type}${p.kind ? " · " + p.kind : ""})</span>
-                    -- ${p.desc}
-                </div>`).join("");
+            const rows = missingPoints.map(p => {
+                // HTML-escape for the data attribute -- the browser decodes
+                // entities back to real characters when it parses the
+                // attribute, so btn.dataset.point in copyPointName() below
+                // gets the exact raw point name, with no quotes/parens
+                // baked in, ready to paste straight into the editor.
+                const nameAttr = p.name.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+                return `
+                <div style="padding:5px 0; border-top:1px solid var(--panel-border); font-size:12.5px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                    <div style="flex:1; min-width:0;">
+                        <span style="color:#c2410c;">"${p.name}"</span>
+                        <span style="color:#64748b;"> (${p.type}${p.kind ? " · " + p.kind : ""})</span>
+                        -- ${p.desc}
+                    </div>
+                    <button type="button" class="win-icon-btn point-copy-btn" data-point="${nameAttr}" style="width:auto; flex-shrink:0; padding:2px 8px; font-size:11px;" onclick="copyPointName(this)" title="Copy just the point name -- no quotes, no type label">⧉ Copy</button>
+                </div>`;
+            }).join("");
 
             panel.innerHTML =
                 `<div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleNotUsedPanel()">` +
@@ -2552,6 +2563,43 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 `</div>` +
                 `<div id="notUsedPanelBody" style="display:${notUsedPanelCollapsed ? "none" : "block"};">${rows}</div>`;
             panel.style.display = "block";
+        }
+
+        // Copies just the raw point name (no quotes, no "(type · kind)"
+        // label, no description) so it can be pasted straight into the
+        // Program Editor without the user having to type it out or trim
+        // anything off a manual selection.
+        function copyPointName(btn) {
+            const name = btn.dataset.point || "";
+            if (!name) return;
+            const originalLabel = btn.dataset.origLabel || btn.textContent;
+            btn.dataset.origLabel = originalLabel;
+            const showCopied = (ok) => {
+                btn.textContent = ok ? "✓ Copied" : "Copy failed";
+                btn.disabled = true;
+                setTimeout(() => {
+                    btn.textContent = originalLabel;
+                    btn.disabled = false;
+                }, 1200);
+            };
+            const fallbackCopy = () => {
+                const ta = document.createElement("textarea");
+                ta.value = name;
+                ta.style.position = "fixed";
+                ta.style.opacity = "0";
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                let ok = false;
+                try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+                document.body.removeChild(ta);
+                showCopied(ok);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(name).then(() => showCopied(true)).catch(fallbackCopy);
+            } else {
+                fallbackCopy();
+            }
         }
 
         function lintAndHighlight() {
