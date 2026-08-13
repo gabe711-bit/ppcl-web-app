@@ -532,41 +532,6 @@
             }
         }
 
-        /* --- FEEDBACK SCORE BADGE --- */
-        .score-badge-wrap {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 12px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--panel-border);
-        }
-
-        .score-circle {
-            width: 46px;
-            height: 46px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 13px;
-            flex-shrink: 0;
-            border: 2px solid currentColor;
-        }
-
-        .score-good {
-            color: #34d399;
-        }
-
-        .score-mid {
-            color: #fbbf24;
-        }
-
-        .score-bad {
-            color: #f87171;
-        }
-
         /* --- LIVE LINTER --- */
         .code-line {
             white-space: pre-wrap;
@@ -1027,7 +992,6 @@
             <button class="tab-btn" data-tab="learn" onclick="switchTab('learn')">F0 · Learn PPCL</button>
             <button class="tab-btn active" data-tab="editor" onclick="switchTab('editor')">F1 · Program
                 Editor &amp; Simulator</button>
-            <button class="tab-btn" data-tab="diagnostics" onclick="switchTab('diagnostics')">F2 · Diagnostics</button>
         </div>
 
         <!-- TAB: LEARN PPCL (beginner mode) -->
@@ -1525,9 +1489,10 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                         section at the bottom of that same tab and pick a tile. Write your
                         program, click "Save to Panel" to compile it, then "Run Simulation" right next to it to
                         watch it execute against sample values -- you can even force specific starting values
-                        first to see exactly how your code reacts. Use <strong>Diagnostics</strong> (F2) for a
-                        full AI audit against the sequence prompt. Stuck? The 💡 Hint button gives progressively
-                        deeper nudges.</p>
+                        first to see exactly how your code reacts. Click "✅ Check Program Accuracy" to have the
+                        simulator run your saved code against a set of real values from the sequence and confirm
+                        every point reacts the way the sequence calls for. Stuck? The ❔ Help button gives extra
+                        guidance on the sequence without handing you the answer.</p>
                 </div>
             </div>
         </div>
@@ -1570,9 +1535,9 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                         <button onclick="loadScenario()" id="genScenarioBtn" class="btn-gen"
                             style="width: auto; padding: 4px 12px; font-size: 12px;">🎲 Generate
                             Scenario</button>
-                        <button onclick="getHint()" id="hintBtn" class="btn-gen"
-                            style="width: auto; padding: 4px 12px; font-size: 12px; background: #78350f;">💡
-                            Hint</button>
+                        <button onclick="toggleHelpPanel()" id="helpBtn" class="btn-gen"
+                            style="width: auto; padding: 4px 12px; font-size: 12px; background: #78350f;">❔
+                            Help</button>
                     </div>
                 </div>
 
@@ -1582,7 +1547,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     write, or just start typing your own PPCL below.
                 </div>
 
-                <div id="hintPanel"
+                <div id="helpPanel"
                     style="display: none; margin-top: 10px; background: #1c1406; border-left: 3px solid #fbbf24; padding: 10px; border-radius: 4px; font-size: 13px;">
                 </div>
             </div>
@@ -1641,17 +1606,24 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                         <option value="25">25 cycles</option>
                         <option value="50">50 cycles</option>
                     </select>
+                    <button onclick="checkProgramUI()" id="checkProgramBtn" class="btn-gen" disabled
+                        title="Save to Panel first -- accuracy checking runs the panel-accepted code through the sequence's test cases"
+                        style="width: auto; padding: 8px 16px; background: #14532d;">✅ Check Program Accuracy</button>
                     <span style="color: #64748b; font-size: 11px;">Save to Panel compiles and uploads your code
-                        (like a real panel would); Run Simulation then re-executes it and traces exactly what
-                        each line does.</span>
+                        (like a real panel would); Run Simulation re-executes it once and traces exactly what each
+                        line does; Check Program Accuracy runs it against a set of real-world values from the
+                        sequence and confirms your points react the way the sequence calls for.</span>
                 </div>
                 <div id="savePanelResult" class="terminal-out"
                     style="display: none; margin-top: 10px; height: auto; max-height: 400px;"></div>
 
                 <div id="simResults" style="margin-top: 12px;">
                     <span style="color: #64748b; font-size: 13px;">Save to Panel to compile your code, then Run
-                        Simulation to trace exactly what it does line by line.</span>
+                        Simulation to trace exactly what it does line by line, or Check Program Accuracy to test it
+                        against the sequence automatically.</span>
                 </div>
+
+                <div id="checkResults" style="margin-top: 12px;"></div>
 
                 <div class="card" id="forceValuesCard" style="margin-top: 12px; display: none;">
                     <div class="card-title"
@@ -1696,21 +1668,6 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     <div class="equip-grid" id="equipGrid"></div>
                     <div id="equipHint" style="margin-top: 8px; color: #64748b; font-size: 12px;">Pick an
                         equipment type above, or leave it on Random Mix.</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB: DIAGNOSTICS -->
-        <div class="tab-panel" id="tab-diagnostics">
-            <div class="card" style="max-width: 640px;">
-                <div class="card-title">Field Panel Diagnostics & AI Inspector</div>
-                <button onclick="gradeCode()" id="gradeBtn">⚡ Compile & Audit Field Program</button>
-
-                <div style="margin-top: 15px;">
-                    <div class="terminal-out" id="feedbackOutput">
-                        <span style="color: #64748b;">Ready. Write code in the Program Editor tab, then click
-                            "Compile & Audit Field Program"...</span>
-                    </div>
                 </div>
             </div>
         </div>
@@ -2251,7 +2208,6 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             kcBumpProgress(id);
         }
 
-        let hintLevel = 0; // 0 = no hint requested yet for this scenario, 1-3 = progressively deeper
         // Last point values produced by either "Run Simulation" or "Save to
         // Panel" -- read by the hover tooltip so it can show a live value
         // alongside a point's type. Null until the student runs something.
@@ -2269,6 +2225,8 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             panelAccepted = accepted;
             const btn = document.getElementById("runSimBtn");
             if (btn) btn.disabled = !accepted;
+            const checkBtn = document.getElementById("checkProgramBtn");
+            if (checkBtn) checkBtn.disabled = !accepted;
         }
 
         // --- FORCE STARTING VALUES ---
@@ -2373,8 +2331,8 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
 
         // --- LIVE LINTER ---
         // Lightweight, deterministic checks that run on every keystroke (no
-        // network call). This is NOT a substitute for the AI audit in the
-        // Diagnostics tab -- it just catches obvious slips instantly:
+        // network call). This is NOT a substitute for Check Program Accuracy
+        // -- it just catches obvious slips instantly:
         //   - missing/duplicate leading line numbers
         //   - unbalanced parentheses / quotes
         //   - a line that's just point names with no actual logic
@@ -2790,11 +2748,12 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             btn.innerHTML = `<span class="spinner"></span>Generating...`;
             promptBox.innerHTML = `<span style="color:#64748b;">Loading sequence...</span>`;
 
-            // New scenario -- reset the hint ladder and hide any old hint.
-            hintLevel = 0;
+            // New scenario -- hide any old help panel and check results.
             resetNotUsedPanelCollapse();
-            const hintPanel = document.getElementById("hintPanel");
-            if (hintPanel) { hintPanel.style.display = "none"; hintPanel.innerHTML = ""; }
+            const helpPanel = document.getElementById("helpPanel");
+            if (helpPanel) { helpPanel.style.display = "none"; helpPanel.innerHTML = ""; }
+            const checkResults = document.getElementById("checkResults");
+            if (checkResults) checkResults.innerHTML = "";
 
             const endpoint = currentMode === "edit" ? "/api/get-edit-scenario" : "/api/get-scenario";
 
@@ -2849,135 +2808,159 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             }
         }
 
-        async function gradeCode() {
-            const code = document.getElementById("codeEditor").value;
-            const output = document.getElementById("feedbackOutput");
-            const btn = document.getElementById("gradeBtn");
-
-            if (!currentScenario) {
-                output.innerHTML = `<span style="color: #f87171;">No scenario loaded yet. Go to the Program Editor tab and click "Generate Random Scenario" first.</span>`;
-                switchTab("diagnostics");
+        // Shows/hides the current scenario's "help" text -- extended guidance
+        // on the sequence (which points depend on which, what order things
+        // need to happen in, which PPCL construct the exercise is built
+        // around) meant to point a stuck student in the right direction
+        // without just handing them the answer. No AI call -- this is just
+        // static text authored alongside each scenario in app.py.
+        function toggleHelpPanel() {
+            const panel = document.getElementById("helpPanel");
+            if (!panel) return;
+            const currentlyShown = panel.style.display === "block";
+            if (currentlyShown) {
+                panel.style.display = "none";
                 return;
             }
-            if (!code.trim()) {
-                output.innerHTML = `<span style="color: #f87171;">Write some PPCL code before auditing.</span>`;
-                switchTab("diagnostics");
-                return;
-            }
-
-            const originalLabel = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = `<span class="spinner"></span>Auditing...`;
-            output.innerHTML = `<span style="color: #38bdf8;">[COMPILER] Auditing field program lines...<br>[AI INSPECTOR] Verifying quotes, syntax colors, and point names...</span>`;
-
-            try {
-                const res = await fetch("/api/grade", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        code,
-                        prompt: currentScenario.prompt,
-                        points: activePoints
-                    })
-                });
-
-                const data = await res.json();
-                if (!res.ok || data.error) {
-                    output.innerHTML = `<span style="color: #f87171;">[COMPILER ERROR]: ${data.error || `Server returned ${res.status}`}</span>`;
-                    return;
-                }
-
-                renderFeedback(output, data.feedback);
-            } catch (err) {
-                output.innerHTML = `<span style="color: #f87171;">[CONNECTION ERROR]: Could not reach the server (${err.message}). Check your connection and try again.</span>`;
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalLabel;
-            }
-        }
-
-        function renderFeedback(output, feedbackText) {
-            // Pull out a score like "Score: 85%" or "Score: 85/100" if present
-            const scoreMatch = feedbackText.match(/score[:\s]*([0-9]{1,3})\s*(?:%|\/\s*100)?/i);
-            let scoreHtml = "";
-            if (scoreMatch) {
-                const score = Math.min(100, parseInt(scoreMatch[1], 10));
-                const cls = score >= 80 ? "score-good" : score >= 50 ? "score-mid" : "score-bad";
-                scoreHtml = `
-          <div class="score-badge-wrap">
-            <div class="score-circle ${cls}">${score}%</div>
-            <div style="color:#94a3b8; font-size:12px;">Overall field engineering score</div>
-          </div>`;
-            }
-
-            let formatted = feedbackText
-                .replace(/\n/g, "<br>")
-                .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-
-            output.innerHTML =
-                `<div style="color: #34d399; font-weight: bold; margin-bottom: 8px;">[FIELD DIAGNOSTIC COMPLETE]:</div>` +
-                scoreHtml + formatted;
-        }
-
-        // Progressive hint ladder: level 1 = gentle nudge (no code), level 2 =
-        // names the construct needed, level 3 = a short worked example using a
-        // stand-in point name. Each click of the Hint button goes one level
-        // deeper (up to 3); a new scenario resets it back to 0.
-        const HINT_LEVEL_LABEL = {
-            1: "💡 Hint 1 of 3 (nudge)",
-            2: "💡 Hint 2 of 3 (approach)",
-            3: "💡 Hint 3 of 3 (worked example)"
-        };
-
-        async function getHint() {
-            const panel = document.getElementById("hintPanel");
-            const btn = document.getElementById("hintBtn");
-
             if (!currentScenario) {
                 panel.style.display = "block";
                 panel.innerHTML = `<span style="color:#f87171;">No scenario loaded yet. Click "Generate Scenario" first.</span>`;
                 return;
             }
-            if (hintLevel >= 3) {
-                panel.style.display = "block";
-                return; // already showing the deepest hint available
-            }
+            const helpText = currentScenario.help ||
+                "No extra guidance written for this one yet -- re-read the sequence prompt above and work through each condition one at a time, then check your work with Run Simulation.";
+            panel.style.display = "block";
+            panel.innerHTML = `<strong style="color:#fbbf24;">❔ Sequence Help</strong><div style="margin-top:6px;">${helpText}</div>`;
+        }
 
-            const nextLevel = hintLevel + 1;
-            const code = document.getElementById("codeEditor").value;
+        // ---- Local program-accuracy checker --------------------------------
+        //
+        // Replaces the old AI code audit ("Compile & Audit Field Program").
+        // Instead of asking a model whether the code "looks right", this
+        // actually RUNS the student's saved code through the same simulator
+        // engine Run Simulation uses (runSimulation(), further down this
+        // file) once per declared test case, forcing specific starting
+        // values and checking that the resulting point values match what the
+        // sequence says should happen -- e.g. "force RMT to 80 and the
+        // setpoint to 72 -- the cooling valve point had better end up ON."
+        //
+        // Each scenario can carry a "checks" array (authored per-template in
+        // app.py, grounded in that template's actual sequence text), shaped:
+        //   { force: { "%X%SYS.RMT": 80, "%X%SYS.RMT.SP": 72 },
+        //     expect: { "%X%SYS.CLG.VLV": 1 },
+        //     cycles: 1,        // optional, default 1 -- raise for timers/accumulators
+        //     tolerance: 0.5,   // optional, for analog expected values
+        //     note: "RMT above setpoint -- valve should turn ON" }
+        // "force" pins every input point the test case cares about so the
+        // result is deterministic (any point NOT forced still gets a random
+        // starting value from the simulator, same as Run Simulation).
+        // "expect" values are numbers -- 0/1 for binary points (matching how
+        // the simulator stores DI/DO/BV internally), or a numeric target
+        // (with "tolerance") for analog points.
+        function runProgramChecks(checks) {
+            return checks.map((check, i) => {
+                const cycles = check.cycles || 1;
+                // Seed a deterministic "wrong" starting value for any binary
+                // (DI/DO/BV) point the check expects but doesn't already
+                // force. Without this, that point starts at runSimulation's
+                // normal random 0/1 default -- so a program with a bug like
+                // a missing ELSE (never writing to the point on this branch)
+                // would still pass the check about half the time purely by
+                // random luck. Forcing it to the opposite of the expected
+                // value means the check only passes if the program actually
+                // wrote the correct value itself.
+                const effectiveForce = Object.assign({}, check.force || {});
+                Object.entries(check.expect || {}).forEach(([pointName, expected]) => {
+                    if (Object.prototype.hasOwnProperty.call(effectiveForce, pointName)) return;
+                    const pt = activePoints.find(p => p.name === pointName);
+                    if (pt && (pt.type === "DI" || pt.type === "DO" || pt.type === "BV")) {
+                        effectiveForce[pointName] = expected === 1 ? 0 : 1;
+                    }
+                });
+                let result;
+                try {
+                    result = runSimulation(cycles, effectiveForce);
+                } catch (err) {
+                    return { index: i, pass: false, note: check.note, error: `Simulation crashed: ${err.message}`, details: [] };
+                }
+                if (result.parseErrors && result.parseErrors.length) {
+                    return { index: i, pass: false, note: check.note, error: `Couldn't run this test case -- your code has a syntax problem: ${result.parseErrors[0]}`, details: [] };
+                }
+                const details = [];
+                let pass = true;
+                Object.entries(check.expect || {}).forEach(([pointName, expected]) => {
+                    const actual = result.finalSnapshot[pointName];
+                    const tol = check.tolerance != null ? check.tolerance : 0.01;
+                    const got = typeof actual === "number" ? actual : NaN;
+                    const ok = !isNaN(got) && Math.abs(got - expected) <= tol;
+                    if (!ok) pass = false;
+                    details.push({ pointName, expected, actual: got, ok });
+                });
+                return { index: i, pass, note: check.note, details, error: null };
+            });
+        }
+
+        function formatCheckValue(pointName, val) {
+            if (isNaN(val)) return "(not set -- point never referenced in your code)";
+            const pt = activePoints.find(p => p.name === pointName);
+            return pt ? formatPointValue(pt, val) : String(val);
+        }
+
+        function renderCheckResults(results) {
+            const out = document.getElementById("checkResults");
+            if (!out) return;
+            const passCount = results.filter(r => r.pass).length;
+            const total = results.length;
+            const allPass = passCount === total;
+
+            let html = `<div class="sim-section-title">Automated Accuracy Check -- ${passCount}/${total} passed</div>`;
+            html += `<div style="margin:6px 0 10px; padding:8px 10px; border-radius:4px; font-weight:bold; ${allPass
+                ? "background:#052e1a; color:#34d399; border-left:3px solid #34d399;"
+                : "background:#2a0a0a; color:#f87171; border-left:3px solid #f87171;"}">` +
+                `${allPass ? "✓ All test cases passed -- your program reacts the way the sequence calls for." : "✗ Some test cases failed -- see below."}</div>`;
+
+            results.forEach((r, i) => {
+                const icon = r.pass ? "✓" : "✗";
+                const color = r.pass ? "#34d399" : "#f87171";
+                html += `<div style="margin-bottom:8px; padding:8px 10px; background:#0a0f14; border-radius:4px; border-left:3px solid ${color};">`;
+                html += `<div style="color:${color}; font-weight:bold;">${icon} Test ${i + 1}${r.note ? ": " + r.note : ""}</div>`;
+                if (r.error) {
+                    html += `<div style="color:#f87171; font-size:12.5px; margin-top:4px;">${r.error}</div>`;
+                } else {
+                    r.details.forEach(d => {
+                        const dcolor = d.ok ? "#94a3b8" : "#fca5a5";
+                        html += `<div style="color:${dcolor}; font-size:12.5px; margin-top:2px;">"${d.pointName}" -- expected ${formatCheckValue(d.pointName, d.expected)}, got ${formatCheckValue(d.pointName, d.actual)} ${d.ok ? "✓" : "✗"}</div>`;
+                    });
+                }
+                html += `</div>`;
+            });
+            out.innerHTML = html;
+        }
+
+        function checkProgramUI() {
+            const btn = document.getElementById("checkProgramBtn");
+            const out = document.getElementById("checkResults");
+            if (!out) return;
+
+            if (!currentScenario) {
+                out.innerHTML = `<span style="color:#f87171;">No scenario loaded yet. Generate a scenario first.</span>`;
+                return;
+            }
+            const checks = currentScenario.checks;
+            if (!checks || !checks.length) {
+                out.innerHTML = `<div class="sim-section-title">Automated Accuracy Check</div>` +
+                    `<span style="color:#94a3b8; font-size:13px;">Automated verification isn't available for this scenario yet -- use Run Simulation with a few different Forced Starting Values to test your logic by hand against the sequence prompt above.</span>`;
+                return;
+            }
 
             const originalLabel = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = `<span class="spinner"></span>Thinking...`;
-            panel.style.display = "block";
-            panel.innerHTML = `<span style="color:#94a3b8;">Working out a hint...</span>`;
-
+            btn.innerHTML = `<span class="spinner"></span>Checking...`;
             try {
-                const res = await fetch("/api/hint", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        code,
-                        prompt: currentScenario.prompt,
-                        points: activePoints,
-                        hintLevel: nextLevel
-                    })
-                });
-                const data = await res.json();
-                if (!res.ok || data.error) {
-                    panel.innerHTML = `<span style="color:#f87171;">${data.error || `Server returned ${res.status}`}</span>`;
-                    return;
-                }
-
-                hintLevel = data.hintLevel || nextLevel;
-                const formatted = data.hint.replace(/\n/g, "<br>").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-                const label = HINT_LEVEL_LABEL[hintLevel] || "💡 Hint";
-                const more = hintLevel < 3
-                    ? `<div style="margin-top:8px;"><button onclick="getHint()" class="btn-gen" style="width:auto; padding:4px 10px; font-size:12px;">Still stuck? Get a deeper hint →</button></div>`
-                    : `<div style="margin-top:8px; color:#64748b; font-size:12px;">That's the deepest hint available -- give it a shot, then use Compile &amp; Audit for full feedback.</div>`;
-                panel.innerHTML = `<strong style="color:#fbbf24;">${label}</strong><div style="margin-top:6px;">${formatted}</div>${more}`;
+                const results = runProgramChecks(checks);
+                renderCheckResults(results);
             } catch (err) {
-                panel.innerHTML = `<span style="color:#f87171;">Could not reach the server (${err.message}).</span>`;
+                out.innerHTML = `<div class="sim-error-box">Accuracy check crashed unexpectedly: ${err.message}</div>`;
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalLabel;
