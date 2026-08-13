@@ -2552,7 +2552,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                         <span style="color:#64748b;"> (${p.type}${p.kind ? " · " + p.kind : ""})</span>
                         -- ${p.desc}
                     </div>
-                    <button type="button" class="win-icon-btn point-copy-btn" data-point="${nameAttr}" style="width:auto; flex-shrink:0; padding:2px 8px; font-size:11px;" onclick="copyPointName(this)" title="Copy just the point name -- no quotes, no type label">⧉ Copy</button>
+                    <button type="button" class="win-icon-btn point-copy-btn" data-point="${nameAttr}" style="width:auto; flex-shrink:0; padding:2px 8px; font-size:11px;" onclick="copyPointName(this)" title="Copy the point name in quotes, ready to paste into your code">⧉ Copy</button>
                 </div>`;
             }).join("");
 
@@ -2565,13 +2565,14 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             panel.style.display = "block";
         }
 
-        // Copies just the raw point name (no quotes, no "(type · kind)"
-        // label, no description) so it can be pasted straight into the
-        // Program Editor without the user having to type it out or trim
-        // anything off a manual selection.
+        // Copies the point name pre-quoted, e.g. "AHU1.SAF.SS" -- ready to
+        // drop straight into a PPCL statement like ON ("AHU1.SAF.SS") --
+        // without the "(type · kind)" label or description tagging along,
+        // and without the user having to type the quotes themselves.
         function copyPointName(btn) {
             const name = btn.dataset.point || "";
             if (!name) return;
+            const quoted = `"${name}"`;
             const originalLabel = btn.dataset.origLabel || btn.textContent;
             btn.dataset.origLabel = originalLabel;
             const showCopied = (ok) => {
@@ -2584,7 +2585,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             };
             const fallbackCopy = () => {
                 const ta = document.createElement("textarea");
-                ta.value = name;
+                ta.value = quoted;
                 ta.style.position = "fixed";
                 ta.style.opacity = "0";
                 document.body.appendChild(ta);
@@ -2596,7 +2597,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 showCopied(ok);
             };
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(name).then(() => showCopied(true)).catch(fallbackCopy);
+                navigator.clipboard.writeText(quoted).then(() => showCopied(true)).catch(fallbackCopy);
             } else {
                 fallbackCopy();
             }
