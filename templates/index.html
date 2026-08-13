@@ -1841,15 +1841,18 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         // ============================================================
         // KNOWLEDGE CHECK QUIZZES (Learn PPCL tab)
         // ============================================================
-        // Sourced from a real Siemens field-training workbook (AMC-BAU 335
-        // PPCL Workbook) the user uploaded. That workbook ships with zero
-        // answer key, so answers below were independently derived: for
-        // objectively-gradable items (true/false, fill-in-the-blank,
-        // calculations) the correct value was computed from the workbook's
-        // own given data/tables. Open-ended "write a line of PPCL" items
-        // have no single correct answer, so those are checked by sending
-        // the student's attempt to /api/grade-knowledge-check for real AI
-        // feedback rather than a hardcoded string match.
+        // Sourced from Gabe's own completed PPCL workbook (with a real,
+        // filled-in answer key -- an earlier, unanswered copy of the same
+        // workbook was used for the question wording before that). Every
+        // answer below is graded locally against that real answer key --
+        // true/false, fill-in-the-blank, and calculations are checked
+        // directly; "write a line of PPCL" items are checked with
+        // ppclAnswerCheck() (structural match against the workbook's actual
+        // syntax, tolerant of spacing/capitalization/quoting) or, for the
+        // handful of open-ended explanatory questions, conceptCoverage()
+        // (keyword-coverage against the ideas a correct answer should hit).
+        // No AI call, no cost, and it grades against the real answer instead
+        // of a model's best guess -- see checkKcCode() further down.
         //
         // Each block lives in KNOWLEDGE_CHECKS keyed by an id that matches
         // a <div class="kc-slot" data-kc="ID"></div> placeholder sitting
@@ -1860,8 +1863,8 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         //   { type: "truefalse", q, answer: true|false, explain }
         //   { type: "fillblank", q, accept: [...acceptable strings...], explain }
         //   { type: "calc", q, answer: number, tolerance: number, explain }
-        //   { type: "code", q, context }   -- context is extra background sent
-        //                                     to the AI grader alongside the question
+        //   { type: "code", q, context, match: {...} }       -- structural PPCL check
+        //   { type: "code", q, context, concepts: [...], minHits }  -- open-ended check
         const KNOWLEDGE_CHECKS = {
             "rules": {
                 title: "PPCL Rules and Guidelines -- Knowledge Check",
@@ -1870,7 +1873,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     { type: "fillblank", q: "Each statement is assigned a line number between ___ and ___.", accept: ["1 and 32767", "1 32767", "1-32767", "1 to 32767"], explain: "1 and 32,767 -- that's the full valid range of PPCL line numbers." },
                     { type: "fillblank", q: "Lines are typically numbered by multiples of ___.", accept: ["10", "ten"], numeric: true, explain: "Ten (10, 20, 30...) -- leaves room to insert new lines later without renumbering everything." },
                     { type: "fillblank", q: "The maximum number of statements in a PPCL program is limited by the amount of ___ in the field panel.", accept: ["free memory", "memory", "available memory"], explain: "Free memory -- viewable per-panel from the System Profile application on the Insight workstation." },
-                    { type: "fillblank", q: "When the last line of the program has been executed, the field panel will ___.", accept: ["return to the first line", "go back to line 1", "return to line 1", "wrap to the first line", "restart at the first line"], explain: "It automatically returns to the first line of the program and keeps processing -- programs run in an endless ascending loop." },
+                    { type: "fillblank", q: "When the last line of the program has been executed, the field panel will ___.", accept: ["return to the first line", "go back to the first line", "go back to line 1", "go to the first line", "return to line 1", "wrap to the first line", "restart at the first line"], explain: "It automatically returns to the first line of the program and keeps processing -- programs run in an endless ascending loop." },
                     { type: "fillblank", q: "Logical point names that use characters other than A-Z, or 0-9 must use ___ in PPCL statements.", accept: ["double quotes", "quotes", "quotation marks"], explain: "Double quotes -- e.g. \"BLDG950.AH01.SAF\"." }
                 ]
             },
@@ -1881,16 +1884,16 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     { type: "fillblank", q: "What local variables are specifically used in subroutines?", accept: ["$arg", "arg", "$arg1-$arg15", "$arg1 through $arg15"], explain: "$ARG1 through $ARG15 -- the other 15 built-in locals, reserved for passing values into/out of subroutines." },
                     { type: "truefalse", q: "Local variables can be put directly onto a graphic.", answer: false, explain: "False -- local variables can't be directly displayed on a graphic or commanded from the Commander/Global Commander application, unlike real points." },
                     { type: "fillblank", q: "When referencing a local variable contained inside the same program, ___ must precede the name of the local variable.", accept: ["$", "a dollar sign", "dollar sign"], explain: "A $ (dollar sign) -- e.g. ON ($FANPT) -- so the panel knows it's a local variable, not a system point." },
-                    { type: "code", q: "Write a line of PPCL that creates custom local variables for these points: SAFRMP, RAFRMP, MAORMP.", context: "The LOCAL() statement declares custom local variables. Syntax: LOCAL(pt1...pt16). Correct answer: LOCAL (SAFRMP, RAFRMP, MAORMP)" }
+                    { type: "code", q: "Write a line of PPCL that creates custom local variables for these points: SAFRMP, RAFRMP, MAORMP.", context: "The LOCAL() statement declares custom local variables. Syntax: LOCAL(pt1...pt16). Correct answer: LOCAL (SAFRMP, RAFRMP, MAORMP)", match: { strict: true, need: ["LOCAL (SAFRMP, RAFRMP, MAORMP)"] } }
                 ]
             },
             "point-commands": {
                 title: "Point Commands -- Knowledge Check",
                 questions: [
-                    { type: "code", q: "Write a statement: the point TEST.BLR1.SS needs to be turned ON.", context: "Point name has non-alphanumeric characters (periods) so it must be quoted. Correct answer: ON (\"TEST.BLR1.SS\")" },
-                    { type: "code", q: "Write a statement: the point TEST.SAF1.SPD needs to be commanded to 65%.", context: "SET() takes the value first, then the point. Correct answer: SET (65, \"TEST.SAF1.SPD\")" },
-                    { type: "code", q: "Write a statement: the point SIE.AH55.RAD needs to be commanded to 100%.", context: "SET() takes the value first, then the point. Correct answer: SET (100, \"SIE.AH55.RAD\")" },
-                    { type: "code", q: "Write a statement: the point SIE.CLR1.SS needs to be turned OFF.", context: "Correct answer: OFF (\"SIE.CLR1.SS\")" }
+                    { type: "code", q: "Write a statement: the point TEST.BLR1.SS needs to be turned ON.", context: "Point name has non-alphanumeric characters (periods) so it must be quoted. Correct answer: ON (\"TEST.BLR1.SS\")", match: { strict: false, need: ["ON (TEST.BLR1.SS)"] } },
+                    { type: "code", q: "Write a statement: the point TEST.SAF1.SPD needs to be commanded to 65%.", context: "SET() takes the value first, then the point. Correct answer: SET (65, \"TEST.SAF1.SPD\")", match: { strict: false, need: ["SET (65, TEST.SAF1.SPD)"] } },
+                    { type: "code", q: "Write a statement: the point SIE.AH55.RAD needs to be commanded to 100%.", context: "SET() takes the value first, then the point. Correct answer: SET (100, \"SIE.AH55.RAD\")", match: { strict: false, need: ["SET (100, SIE.AH55.RAD)"] } },
+                    { type: "code", q: "Write a statement: the point SIE.CLR1.SS needs to be turned OFF.", context: "Correct answer: OFF (\"SIE.CLR1.SS\")", match: { strict: false, need: ["OFF (SIE.CLR1.SS)"] } }
                 ]
             },
             "relational": {
@@ -1918,7 +1921,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             "then-else": {
                 title: "Then/Else -- Practice Exercise",
                 questions: [
-                    { type: "code", q: "Write one complete line of PPCL: turn ON a fan (FAN) when room temp (RMT) is above 85 degrees, and OFF when it's below 85.", context: "Needs IF/THEN/ELSE with .GT. comparison. A correct shape: IF (RMT .GT. 85) THEN ON (FAN) ELSE OFF (FAN) -- the ELSE is what returns the fan to OFF once the temp drops back down; without it the fan would stay stuck ON forever after the first trip." }
+                    { type: "code", q: "Write one complete line of PPCL: turn ON a fan (FAN) when room temp (RMT) is above 85 degrees, and OFF when it's below 85.", context: "Needs IF/THEN/ELSE with .GT. comparison. A correct shape: IF (RMT .GT. 85) THEN ON (FAN) ELSE OFF (FAN) -- the ELSE is what returns the fan to OFF once the temp drops back down; without it the fan would stay stuck ON forever after the first trip.", match: { strict: true, need: ["IF (RMT .GT. 85) THEN ON (FAN) ELSE OFF (FAN)"] } }
                 ]
             },
             "arithmetic": {
@@ -1934,17 +1937,17 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             "precedence": {
                 title: "Order of Precedence -- Knowledge Check",
                 questions: [
-                    { type: "code", q: "Write a statement to calculate the average static pressure (AHU1.SSP.AVG) from 4 sensors: AHU1.SSP1, AHU1.SSP2, AHU1.SSP3, AHU1.SSP4.", context: "Needs parentheses to force the addition before the division, since / outranks + in normal precedence order. Correct shape: \"AHU1.SSP.AVG\" = (\"AHU1.SSP1\" + \"AHU1.SSP2\" + \"AHU1.SSP3\" + \"AHU1.SSP4\") / 4" },
-                    { type: "code", q: "Write a statement: if the supply fan (SAF) is on and the mixed air damper (MAO) is greater than 80%, increase a counter (CTR) by 1; otherwise set the counter to 0.", context: "Needs IF/THEN/ELSE with .AND. and a self-referencing increment. Correct shape: IF (SAF .EQ. ON .AND. MAO .GT. 80) THEN CTR = CTR + 1 ELSE CTR = 0" },
+                    { type: "code", q: "Write a statement to calculate the average static pressure (AHU1.SSP.AVG) from 4 sensors: AHU1.SSP1, AHU1.SSP2, AHU1.SSP3, AHU1.SSP4.", context: "Needs parentheses to force the addition before the division, since / outranks + in normal precedence order. Correct shape: \"AHU1.SSP.AVG\" = (\"AHU1.SSP1\" + \"AHU1.SSP2\" + \"AHU1.SSP3\" + \"AHU1.SSP4\") / 4", match: { strict: true, need: ["AHU1.SSP.AVG = (AHU1.SSP1 + AHU1.SSP2 + AHU1.SSP3 + AHU1.SSP4) / 4"] } },
+                    { type: "code", q: "Write a statement: if the supply fan (SAF) is on and the mixed air damper (MAO) is greater than 80%, increase a counter (CTR) by 1; otherwise set the counter to 0.", context: "Needs IF/THEN/ELSE with .AND. and a self-referencing increment. Correct shape: IF (SAF .EQ. ON .AND. MAO .GT. 80) THEN CTR = CTR + 1 ELSE CTR = 0", match: { strict: true, need: [["IF (SAF .EQ. ON .AND. MAO .GT. 80) THEN CTR = CTR + 1 ELSE CTR = 0", "IF (SAF .EQ. ON .AND. MAO .GT. 80) THEN CRT = CTR + 1 ELSE CTR = 0"]] } },
                     { type: "calc", q: "Calculate: VRT = 4 + 1 * 2 / (2-1)", answer: 6, tolerance: 0, explain: "Parens first: (2-1)=1. Then multiply/divide left to right: 1*2=2, 2/1=2. Then add: 4+2=6." }
                 ]
             },
             "sample-timer": {
                 title: "SAMPLE Statements -- Timer Exercise",
                 questions: [
-                    { type: "code", q: "Create a timer (TMR) that counts up by 5 every 5 seconds while the economizer (ECO) is on, and resets to 0 when ECO is off.", context: "Needs IF/THEN/ELSE with SAMPLE(5) gating the increment. Correct shape: IF (ECO .EQ. ON) THEN SAMPLE(5) TMR = TMR + 5 ELSE TMR = 0" },
-                    { type: "code", q: "An outdoor air temp sensor (OAT) in Field Panel 1 needs to be referenced by Field Panel 2, but only needs updating once a minute. Using SAMPLE and a virtual point (VIR), write a line to do this.", context: "Needs SAMPLE(60) gating an assignment from OAT to VIR. Correct shape: SAMPLE(60) VIR = OAT" },
-                    { type: "code", q: "Create a timer (TMR) that counts in 1-second increments while EF1 or EF2 has PRFON status, or RAF has PRFON status. Reset it to 0 otherwise.", context: "Needs IF/THEN/ELSE with nested .OR. conditions and SAMPLE(1). Correct shape: IF (EF1 .EQ. PRFON .OR. EF2 .EQ. PRFON .OR. RAF .EQ. PRFON) THEN SAMPLE(1) TMR = TMR + 1 ELSE TMR = 0" }
+                    { type: "code", q: "Create a timer (TMR) that counts up by 5 every 5 seconds while the economizer (ECO) is on, and resets to 0 when ECO is off.", context: "SAMPLE(5) at the front means this whole line -- the IF check and the action -- only actually runs once every 5 seconds; the timer still needs its own +5 each time it fires. Correct shape: SAMPLE (5) IF (ECO .EQ. ON) THEN TMR = TMR + 5 ELSE TMR = 0", match: { strict: true, need: ["SAMPLE (5) IF (ECO .EQ. ON) THEN TMR = TMR + 5 ELSE TMR = 0"] } },
+                    { type: "code", q: "An outdoor air temp sensor (OAT) in Field Panel 1 needs to be referenced by Field Panel 2, but only needs updating once a minute. Using SAMPLE and a virtual point (VIR), write a line to do this.", context: "SAMPLE's 3-argument form -- SAMPLE(interval, source, destination) -- copies a value from one point to another on its own, no IF/THEN needed. Correct shape: SAMPLE (60, OAT, OAT-VIR)", match: { strict: true, need: ["SAMPLE (60, OAT, OAT-VIR)"] } },
+                    { type: "code", q: "Create a timer (TMR) that counts in 1-second increments while EF1 or EF2 has PRFON status, or RAF has PRFON status. Reset it to 0 otherwise.", context: "SAMPLE(1) up front gates the whole line to run once a second. The condition needs the nested grouping (EF1 .AND. EF2) .OR. RAF -- notice it's NOT a flat three-way .OR., since the requirement is BOTH EF1 and EF2, or RAF alone. Correct shape: SAMPLE (1) IF ((EF1 .EQ. PRFON .AND. EF2 .EQ. PRFON) .OR. RAF .EQ. PRFON) THEN TMR = TMR + 1 ELSE TMR = 0", match: { strict: true, need: ["SAMPLE (1) IF ((EF1 .EQ. PRFON .AND. EF2 .EQ. PRFON) .OR. RAF .EQ. PRFON) THEN TMR = TMR + 1 ELSE TMR = 0"] } }
                 ]
             },
             "min-fn": {
@@ -1964,43 +1967,43 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             "dbswit-fn": {
                 title: "DBSWIT() -- Exercises",
                 questions: [
-                    { type: "code", q: "Create a DBSWIT: the backup CRAC2 unit needs to turn ON if room temp (RMT) goes above 76 degrees, and OFF when RMT drops below a 5-degree dead band.", context: "Cooling mode (type 0), high limit 76, low limit = 76-5 = 71. Correct answer: DBSWIT (0, RMT, 71, 76, CRAC2)" },
-                    { type: "code", q: "Create a DBSWIT: contactors C1 through C6 (electric baseboard heat) need to turn ON if room temp (RMT) goes below 70 degrees, and OFF when RMT exceeds a 2-degree dead band.", context: "Heating mode (type 1), low limit 70, high limit = 70+2 = 72. Correct answer: DBSWIT (1, RMT, 70, 72, C1, C2, C3, C4, C5, C6)" }
+                    { type: "code", q: "Create a DBSWIT: the backup CRAC2 unit needs to turn ON if room temp (RMT) goes above 76 degrees, and OFF when RMT drops below a 5-degree dead band.", context: "Cooling mode (type 0), high limit 76, low limit = 76-5 = 71. Correct answer: DBSWIT (0, RMT, 71, 76, CRAC2)", match: { strict: true, need: ["DBSWIT (0, RMT, 71, 76, CRAC2)"] } },
+                    { type: "code", q: "Create a DBSWIT: contactors C1 through C6 (electric baseboard heat) need to turn ON if room temp (RMT) goes below 70 degrees, and OFF when RMT exceeds a 2-degree dead band.", context: "Heating mode (type 1), low limit 70, high limit = 70+2 = 72. Correct answer: DBSWIT (1, RMT, 70, 72, C1, C2, C3, C4, C5, C6)", match: { strict: true, need: [["DBSWIT (1, RMT, 70, 72, C1, C2, C3, C4, C5, C6)", "DBSWIT (1, RMT, 68, 70, C1, C2, C3, C4, C5, C6)"]] } }
                 ]
             },
             "timavg-fn": {
                 title: "TIMAVG() -- Exercises",
                 questions: [
-                    { type: "code", q: "An AHU1 flow meter (SCFM) is noisy. Create a TIMAVG that samples every 2 seconds and averages the 5 most recent samples, storing the result in a virtual point SCFM.V.", context: "Syntax: TIMAVG(RESULT, sample time, #samples, INPUT). Correct answer: TIMAVG (\"SCFM.V\", 2, 5, SCFM)" },
+                    { type: "code", q: "An AHU1 flow meter (SCFM) is noisy. Create a TIMAVG that samples every 2 seconds and averages the 5 most recent samples, storing the result in a virtual point SCFM.V.", context: "Syntax: TIMAVG(INPUT, sample time, #samples, RESULT) -- the averaged result comes last, not first. Correct answer: TIMAVG (SCFM, 2, 5, SCFM.V)", match: { strict: true, need: ["TIMAVG (SCFM, 2, 5, SCFM.V)"] } },
                     { type: "calc", q: "Using that TIMAVG and these 5 samples -- 12002, 12305, 12126, 12465, 12009 CFM -- what value will SCFM.V be set to?", answer: 12181.4, tolerance: 0.5, explain: "Sum = 60,907. 60,907 / 5 = 12,181.4 CFM." }
                 ]
             },
             "table-fn": {
                 title: "TABLE() -- Exercises",
                 questions: [
-                    { type: "code", q: "Create a TABLE statement: output (OUT) should be 0 when input (IN) is 0, and 100 when IN is 100.", context: "Syntax: TABLE(INPUT, OUTPUT, X1, Y1, X2, Y2). Correct answer: TABLE (IN, OUT, 0, 0, 100, 100)" },
-                    { type: "code", q: "Create a TABLE statement: output (OUT) should be 100 when input (IN) is 0, and 0 when IN is 100 (i.e. reversed).", context: "Correct answer: TABLE (IN, OUT, 0, 100, 100, 0)" },
-                    { type: "code", q: "Create a TABLE statement: output (OUT) should be 0 when input (IN) is 0, stay 0 when IN is 5, then rise to 100 when IN is 10.", context: "Three X/Y pairs, X ascending. Correct answer: TABLE (IN, OUT, 0, 0, 5, 0, 10, 100)" },
-                    { type: "code", q: "On AHU3, the outside air damper (OAD) and exhaust air damper (EAD) need to work in REVERSE of the mixed air damper (MAO), all 0-100%. Write TABLE statements for OAD and EAD.", context: "If MAO rises 0->100, OAD/EAD should fall 100->0. Correct answer: TABLE (MAO, OAD, 0, 100, 100, 0) and TABLE (MAO, EAD, 0, 100, 100, 0)" },
-                    { type: "code", q: "AHU7 has two hot water valves (HCO1 and HCO2) controlled off one virtual point (VIR), 0-100%. HCO1 should modulate open as VIR rises from 0 to 66.6%, and stay fully open once VIR is above 66.6%. HCO2 should modulate open as VIR rises from 66.7 to 100%. Write TABLE statements for HCO1 and HCO2.", context: "HCO1 goes from 0 (closed) at VIR=0 to 100 (open) at VIR=66.6, then holds open -- so it only needs those two points since TABLE holds the last Y value for any input beyond the last X. HCO2 stays closed until VIR=66.7 then opens fully by VIR=100. Correct answer: TABLE (VIR, HCO1, 0, 0, 66.6, 100) and TABLE (VIR, HCO2, 66.7, 0, 100, 100)" },
-                    { type: "code", q: "AHU1 uses one virtual point (VIR), 0-100%, to sequence three devices without overlap: the heating coil valve (HCO) should modulate closed as VIR rises from 0 to 40%, the mixed air damper (MAO) should modulate closed as VIR rises from 40.1 to 60%, and the cooling coil valve (CCO) should modulate open as VIR rises from 60.1 to 100%. Write the three TABLE statements.", context: "HCO starts fully open at VIR=0 and closes by VIR=40. MAO starts fully open at VIR=40.1 and closes by VIR=60. CCO starts closed at VIR=60.1 and opens fully by VIR=100. Correct answer: TABLE (VIR, HCO, 0, 100, 40, 0) and TABLE (VIR, MAO, 40.1, 100, 60, 0) and TABLE (VIR, CCO, 60.1, 0, 100, 100)" }
+                    { type: "code", q: "Create a TABLE statement: output (OUT) should be 0 when input (IN) is 0, and 100 when IN is 100.", context: "Syntax: TABLE(INPUT, OUTPUT, X1, Y1, X2, Y2). Correct answer: TABLE (IN, OUT, 0, 0, 100, 100)", match: { strict: true, need: ["TABLE (IN, OUT, 0, 0, 100, 100)"] } },
+                    { type: "code", q: "Create a TABLE statement: output (OUT) should be 100 when input (IN) is 0, and 0 when IN is 100 (i.e. reversed).", context: "Correct answer: TABLE (IN, OUT, 0, 100, 100, 0)", match: { strict: true, need: ["TABLE (IN, OUT, 0, 100, 100, 0)"] } },
+                    { type: "code", q: "Create a TABLE statement: output (OUT) should be 0 when input (IN) is 0, stay 0 when IN is 5, then rise to 100 when IN is 10.", context: "Three X/Y pairs, X ascending. Correct answer: TABLE (IN, OUT, 0, 0, 5, 0, 10, 100)", match: { strict: true, need: ["TABLE (IN, OUT, 0, 0, 5, 0, 10, 100)"] } },
+                    { type: "code", q: "On AHU3, the outside air damper (OAD) and exhaust air damper (EAD) need to work in REVERSE of the mixed air damper (MAO), all 0-100%. Write TABLE statements for OAD and EAD.", context: "If MAO rises 0->100, OAD/EAD should fall 100->0. Correct answer: TABLE (MAO, OAD, 0, 100, 100, 0) and TABLE (MAO, EAD, 0, 100, 100, 0)", match: { strict: true, need: ["TABLE (MAO, OAD, 0, 100, 100, 0)", "TABLE (MAO, EAD, 0, 100, 100, 0)"] } },
+                    { type: "code", q: "AHU7 has two hot water valves (HCO1 and HCO2) controlled off one virtual point (VIR), 0-100%. HCO1 should modulate open as VIR rises from 0 to 66.6%, and stay fully open once VIR is above 66.6%. HCO2 should modulate open as VIR rises from 66.7 to 100%. Write TABLE statements for HCO1 and HCO2.", context: "HCO1 goes from 0 (closed) at VIR=0 to 100 (open) at VIR=66.6, then holds open through 100 -- written as a third X/Y pair repeating the 100 so the table is fully defined across the whole 0-100 range. HCO2 stays closed (0) through VIR=66.6, then opens from 66.7 to 100. Correct answer: TABLE (VIR, HCO1, 0, 0, 66.6, 100, 100, 100) and TABLE (VIR, HCO2, 0, 0, 66.7, 0, 100, 100)", match: { strict: true, need: [["TABLE (VIR, HCO1, 0, 0, 66.6, 100, 100, 100)", "TABLE (VIR, HCO1, 0, 0, 66.6, 100)"], ["TABLE (VIR, HCO2, 0, 0, 66.7, 0, 100, 100)", "TABLE (VIR, HCO2, 66.7, 0, 100, 100)"]] } },
+                    { type: "code", q: "AHU1 uses one virtual point (VIR), 0-100%, to sequence three devices without overlap: the heating coil valve (HCO) should modulate closed as VIR rises from 0 to 40%, the mixed air damper (MAO) should modulate closed as VIR rises from 40.1 to 60%, and the cooling coil valve (CCO) should modulate open as VIR rises from 60.1 to 100%. Write the three TABLE statements.", context: "HCO starts fully open at VIR=0 and closes by VIR=40. MAO stays open through 40.1, then closes by VIR=60. CCO starts closed at VIR=60.1 and opens fully by VIR=100. Correct answer: TABLE (VIR, HCO, 0, 100, 40, 0) and TABLE (VIR, MAO, 40.1, 100, 60, 0) and TABLE (VIR, CCO, 60.1, 0, 100, 100)", match: { strict: true, need: [["TABLE (VIR, HCO, 0, 100, 40, 0)", "TABLE (VIR, HCO, 0, 100, 40, 0, 100, 0)"], ["TABLE (VIR, MAO, 40.1, 100, 60, 0)", "TABLE (VIR, MAO, 0, 100, 40.1, 100, 60, 0, 100, 0)"], ["TABLE (VIR, CCO, 60.1, 0, 100, 100)", "TABLE (VIR, CCO, 0, 0, 60.1, 0, 100, 100)"]] } }
                 ]
             },
             "modular-programming": {
                 title: "Modular Programming Knowledge Check",
                 intro: "This AHU's full sequence of operation -- Occupied: supply/return fans start and modulate speed to hold duct static pressure; heating valve, mixing dampers, and cooling valve modulate in sequence to maintain discharge temp setpoint. Unoccupied: fans stop; mixed air damper fully opens and outside/exhaust dampers fully close; heating and cooling valves go fully closed. Night Heating: fans run and modulate for static pressure; heating valve opens to 50%; dampers stay closed to outdoor air; cooling valve stays closed. Night Cooling: fans run and modulate for static pressure; cooling valve opens to 50%; dampers stay closed to outdoor air; heating valve stays closed. Warm-Up: fans run; dampers positioned for 100% return air; cooling valve closed; heating valve fully open. Cool-Down: fans run; dampers positioned for 100% return air; heating valve closed; cooling valve fully open. Safety Smoke: smoke detectors de-energize the supply/return fans; mixed air damper fully opens, outside/exhaust dampers fully close; heating/cooling valves move to their fail-safe position. Safety HSP: a high static pressure switch de-energizes the fans; mixed air damper fully opens, outside/exhaust close; valves move to fail-safe. Safety LTD: a low-temp detector below 38 degrees F de-energizes the fans; mixed air damper fully opens, outside/exhaust close; both valves go fully open. The completed decision table for Fan Tracking (which modulates fan speed to hold duct static pressure) is: Mod during Warm-Up, Cool-Down, Occupied, Night Heating, and Night Cooling -- Off during Unoccupied, Safety Smoke, Safety HSP, and Safety LTD.",
                 questions: [
-                    { type: "code", q: "If a smoke detector trips, which section(s) of the program execute?", context: "Real AHU programs check safety before mode, and safety always overrides everything else. Correct answer: only the Safety Smoke section executes -- it takes priority over whatever mode (Occupied, Unoccupied, Night Heat/Cool, Warm-Up/Cool-Down) the unit was in when the trip happened." },
-                    { type: "code", q: "During normal daytime operation (occupied), which section(s) of the program execute?", context: "Correct answer: only the Occupied section runs (fans start and modulate for static pressure; heating valve, mixing dampers, and cooling valve modulate in sequence to hold discharge temp setpoint)." },
-                    { type: "code", q: "Why is the Fan Tracking section of the program skipped during the Unoccupied and Safety modes?", context: "Correct answer: Fan Tracking exists to modulate fan speed and hold duct static pressure -- but in Unoccupied and every Safety mode the supply/return fans are stopped or de-energized, so there is no running fan to control. Modulating a fan speed loop with the fan off would be meaningless (and could wind the loop up chasing a static-pressure reading that will never rise), so the Decision Tree simply never routes into the Fan Tracking block in those modes." }
+                    { type: "code", q: "If a smoke detector trips, which section(s) of the program execute?", context: "Real AHU programs check safety before mode, and safety always overrides everything else. Correct answer: only the Safety Smoke section executes -- it takes priority over whatever mode (Occupied, Unoccupied, Night Heat/Cool, Warm-Up/Cool-Down) the unit was in when the trip happened.", concepts: [["fan"], ["off","de-energ","deenerg","stop","shut"], ["damper"], ["valve"]], minHits: 3 },
+                    { type: "code", q: "During normal daytime operation (occupied), which section(s) of the program execute?", context: "Correct answer: only the Occupied section runs (fans start and modulate for static pressure; heating valve, mixing dampers, and cooling valve modulate in sequence to hold discharge temp setpoint).", concepts: [["fan"], ["on"], ["modulat"], ["setpoint","set point"]], minHits: 3 },
+                    { type: "code", q: "Why is the Fan Tracking section of the program skipped during the Unoccupied and Safety modes?", context: "Correct answer: Fan Tracking exists to modulate fan speed and hold duct static pressure -- but in Unoccupied and every Safety mode the supply/return fans are stopped or de-energized, so there is no running fan to control. Modulating a fan speed loop with the fan off would be meaningless (and could wind the loop up chasing a static-pressure reading that will never rise), so the Decision Tree simply never routes into the Fan Tracking block in those modes.", concepts: [["fan"], ["off","de-energ","stop","not running","no running","stopped","turned off"]], minHits: 2 }
                 ]
             },
             "decision-table-exercise": {
                 title: "Complete a Decision Table Exercise",
                 intro: "A simpler AHU sequence of operation -- Occupied: the supply fan and return fan start; the heating coil valve, mixing dampers, and cooling coil valve modulate in sequence without overlap to maintain the discharge temperature setpoint. Smoke Safety: smoke detectors in the supply and return air streams de-energize the supply and return fans upon activation; all dampers and valves move to their fail-safe position after the fan is de-energized. Unoccupied: the supply and return fans stop; the cooling coil valve and the heating coil valve close, and the mixing dampers close to the outdoor air.",
                 questions: [
-                    { type: "code", q: "Fill in a decision table for Supply Fan, Return Fan, Heating Valve, Mixed Air Damper, and Cooling Coil Valve under each of the three modes: Occupied, Unoccupied, and Safety Smoke.", context: "Correct decision table -- Occupied: Supply Fan ON, Return Fan ON, Heating Valve/Mixed Air Damper/Cooling Coil Valve all modulating (no overlap) to hold discharge temp setpoint. Unoccupied: Supply Fan OFF, Return Fan OFF, Heating Valve closed, Mixed Air Damper closed to outdoor air, Cooling Coil Valve closed. Safety Smoke: Supply Fan OFF, Return Fan OFF, Heating Valve/Mixed Air Damper/Cooling Coil Valve all in their fail-safe position." },
-                    { type: "code", q: "Based on this sequence, what does completing the decision table teach you about how this air handler behaves across its three modes?", context: "There's no single correct wording -- look for the student noticing that Occupied is the only mode where equipment actively modulates to a setpoint, that Unoccupied and Safety Smoke both stop the fans, and that fail-safe (Safety Smoke) is a distinct state from simply closed (Unoccupied) -- e.g. mixed air damper closes in Unoccupied but goes to its independent fail-safe position (not necessarily closed) in Safety Smoke." }
+                    { type: "code", q: "Fill in a decision table for Supply Fan, Return Fan, Heating Valve, Mixed Air Damper, and Cooling Coil Valve under each of the three modes: Occupied, Unoccupied, and Safety Smoke.", context: "Correct decision table -- Occupied: Supply Fan ON, Return Fan ON, Heating Valve/Mixed Air Damper/Cooling Coil Valve all modulating (no overlap) to hold discharge temp setpoint. Unoccupied: Supply Fan OFF, Return Fan OFF, Heating Valve closed (0%), Mixed Air Damper closed (0%) to outdoor air, Cooling Coil Valve closed (0%). Safety Smoke: Supply Fan OFF, Return Fan OFF, Heating Valve and Cooling Coil Valve in their fail-safe position, Mixed Air Damper closed (0%).", concepts: [["occupied"], ["on"], ["off"], ["mod","modulat"], ["fail safe","failsafe","fail-safe"]], minHits: 4 },
+                    { type: "code", q: "Based on this sequence, what does completing the decision table teach you about how this air handler behaves across its three modes?", context: "There's no single correct wording -- look for the student noticing that Occupied is the only mode where equipment actively modulates to a setpoint, and that Unoccupied and Safety Smoke both stop the fans and close/fail-safe the dampers and valves -- the difference between the two non-occupied modes is really just the heating/cooling valves (closed vs. fail-safe position), not the fans or damper.", concepts: [["occupied"], ["fan"], ["safety","smoke"], ["fail safe","failsafe","fail-safe","closed"]], minHits: 1 }
                 ]
             }
         };
@@ -2088,7 +2091,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     ${qHtml}
                     <textarea class="kc-textarea" id="${id}-input" placeholder="Write your PPCL here..."></textarea>
                     <div class="kc-row">
-                        <button type="button" class="kc-btn" onclick="answerCode('${id}')">🤖 Check with AI</button>
+                        <button type="button" class="kc-btn" onclick="checkKcCode('${id}')">Check Answer</button>
                     </div>
                     <div class="kc-feedback" id="${id}-fb"></div>
                 </div>`;
@@ -2159,7 +2162,69 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             kcBumpProgress(id);
         }
 
-        async function answerCode(id) {
+        // ---- Local PPCL answer-key matching (Learn PPCL "code" questions) --
+        //
+        // These used to be graded by sending the student's answer to OpenAI.
+        // They're now checked locally against real answer keys pulled from
+        // Gabe's completed PPCL workbook -- no API call, no cost, instant
+        // feedback, and it grades against the actual answer rather than an
+        // LLM's best guess. Small spacing/capitalization/quoting differences
+        // ("ON(FAN)" vs ON ( "FAN" )) are treated as the same answer; the
+        // underlying PPCL structure (point names, values, and -- for
+        // questions where it's the whole point of the exercise -- correct
+        // parenthesization) still has to be right.
+
+        // Normalizes one PPCL statement so formatting never affects grading.
+        // strict=true keeps parentheses literal (their placement is part of
+        // the answer, e.g. the precedence/order-of-operations exercises);
+        // strict=false treats parens the same as commas -- just argument
+        // separators -- because the real answer key itself is inconsistent
+        // about including them (e.g. "ON TEST.BLR1.SS" with no parens).
+        function ppclNormalize(str, strict) {
+            let s = (str || "").toUpperCase();
+            s = s.replace(/[‘’“”"']/g, ""); // drop every quote style
+            if (strict) {
+                s = s.replace(/,/g, "|");        // commas are just argument separators
+                s = s.replace(/\s+/g, "");        // whitespace never carries meaning
+            } else {
+                s = s.replace(/[(),]/g, "|");     // parens AND commas -> neutral separator
+                s = s.replace(/\s+/g, "|");       // whitespace is the only separator left once parens are gone, so it has to become one
+            }
+            s = s.replace(/\|+/g, "|").replace(/^\||\|$/g, "");
+            return s;
+        }
+
+        // matchSpec = { strict: bool, need: [...] } where each entry in
+        // "need" is either a required statement (string) or a list of
+        // interchangeable acceptable forms for that one slot (array) --
+        // every slot in "need" must be satisfied somewhere in the student's
+        // answer (AND across slots, OR within a slot's alternatives). This
+        // covers single-statement answers, multi-statement answers (e.g. two
+        // TABLE() lines), and questions with more than one valid phrasing.
+        function ppclAnswerCheck(userAnswer, matchSpec) {
+            if (!matchSpec || !matchSpec.need) return null;
+            const strict = !!matchSpec.strict;
+            const userNorm = ppclNormalize(userAnswer, strict);
+            if (!userNorm) return false;
+            return matchSpec.need.every(slot => {
+                const alts = Array.isArray(slot) ? slot : [slot];
+                return alts.some(alt => userNorm.includes(ppclNormalize(alt, strict)));
+            });
+        }
+
+        // For open-ended/explanatory questions (no fixed syntax answer) --
+        // checks how many of the key ideas a correct answer should mention
+        // actually show up, rather than demanding exact wording. Each
+        // "concept" is a list of interchangeable synonym substrings; hitting
+        // any one of them counts as covering that concept.
+        function conceptCoverage(answerText, concepts) {
+            const text = (answerText || "").toLowerCase();
+            let hits = 0;
+            concepts.forEach(alts => { if (alts.some(a => text.includes(a))) hits++; });
+            return { hits, total: concepts.length };
+        }
+
+        function checkKcCode(id) {
             const input = document.getElementById(`${id}-input`);
             const answer = (input.value || "").trim();
             const key = id.split("-").slice(1, -1).join("-");
@@ -2169,39 +2234,21 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 kcSetFeedback(id, "incorrect", "Write an answer first.");
                 return;
             }
-            kcSetFeedback(id, "pending", "Checking with AI...");
-            try {
-                const res = await fetch("/api/grade-knowledge-check", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ question: q.q, context: q.context || "", answer })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || "Check failed.");
-                const raw = data.feedback || "";
-                // Strip markdown emphasis/headers the model might add despite
-                // instructions not to, so the VERDICT/FEEDBACK parse below
-                // doesn't silently fail and mis-classify the answer.
-                const text = raw.replace(/[*_#`]/g, "");
-                let verdictMatch = text.match(/VERDICT:?\s*(Partially Correct|Correct|Incorrect)/i);
-                let verdictLabel = verdictMatch ? verdictMatch[1] : null;
-                if (!verdictLabel) {
-                    // Fallback: the model didn't follow the exact label format --
-                    // search the whole reply for the verdict word instead of
-                    // defaulting to "incorrect" for everything.
-                    if (/incorrect/i.test(text)) verdictLabel = "Incorrect";
-                    else if (/partially\s*correct/i.test(text)) verdictLabel = "Partially Correct";
-                    else if (/\bcorrect\b/i.test(text)) verdictLabel = "Correct";
-                }
-                const verdict = (verdictLabel || "").toLowerCase();
-                const cls = verdict.startsWith("incorrect") ? "incorrect" : verdict.startsWith("partially") ? "partial" : verdict.startsWith("correct") ? "correct" : "pending";
-                const feedbackMatch = text.match(/FEEDBACK:?\s*([\s\S]*)/i);
-                const feedbackText = feedbackMatch ? feedbackMatch[1].trim() : text.trim();
-                kcSetFeedback(id, cls, `<strong>${verdictLabel || "Checked"}.</strong> ${feedbackText}`);
-                kcBumpProgress(id);
-            } catch (err) {
-                kcSetFeedback(id, "incorrect", `Couldn't check right now: ${err.message}`);
+            if (q.match) {
+                const isRight = ppclAnswerCheck(answer, q.match);
+                kcSetFeedback(id, isRight ? "correct" : "incorrect",
+                    `${isRight ? "✓ Correct." : "✗ Incorrect."} ${q.context || ""}`);
+            } else if (q.concepts) {
+                const { hits, total } = conceptCoverage(answer, q.concepts);
+                const bar = q.minHits || total;
+                const cls = hits >= bar ? "correct" : hits > 0 ? "partial" : "incorrect";
+                const label = cls === "correct" ? "✓ Correct." : cls === "partial" ? "◐ Partially correct." : "✗ Incorrect.";
+                kcSetFeedback(id, cls, `${label} ${q.context || ""}`);
+            } else {
+                kcSetFeedback(id, "pending", "This question isn't set up for checking yet.");
+                return;
             }
+            kcBumpProgress(id);
         }
 
         let hintLevel = 0; // 0 = no hint requested yet for this scenario, 1-3 = progressively deeper
