@@ -365,14 +365,26 @@
             font-size: 11px;
             color: #cbd5e1;
             background: #070c12;
-            padding: 8px;
+            padding: 10px 12px;
             border-radius: 4px;
             margin-top: 10px;
-            text-align: center;
-            line-height: 1.7;
-            overflow-wrap: break-word;
             box-sizing: border-box;
             width: 100%;
+        }
+
+        .cheat-box strong {
+            display: block;
+            text-align: center;
+            margin-bottom: 6px;
+            color: #e2e8f0;
+        }
+
+        .cheat-box-items {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 6px 16px;
         }
 
         /* --- STATUS BAR (emulates real panel footer) --- */
@@ -635,6 +647,94 @@
             }
         }
 
+        /* The Controller Sequence Prompt stays pinned near the top of the
+           viewport while scrolling a long Program Editor, instead of
+           scrolling out of view -- no more bouncing up and down to
+           re-check the sequence while writing a long program. */
+        #promptCard {
+            position: sticky;
+            top: 10px;
+            z-index: 20;
+        }
+
+        /* --- PROGRAM POINTS vertical tab + slide-out drawer --- */
+        /* Every point in the loaded scenario, always available to copy --
+           including ones already used in the code -- so a sequence that
+           needs the same point wired in multiple times doesn't force the
+           student to scroll back up to find it again. Lives in a
+           slide-out drawer instead of an inline block so it never adds to
+           the page's scroll height. */
+        .points-tab-strip {
+            position: fixed;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            writing-mode: vertical-rl;
+            background: var(--siemens-teal);
+            color: #04202a;
+            border: none;
+            border-radius: 0 6px 6px 0;
+            padding: 16px 7px;
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            z-index: 40;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.45);
+            display: none;
+        }
+
+        .points-tab-strip:hover {
+            background: #5eead4;
+        }
+
+        .points-drawer {
+            position: fixed;
+            left: -340px;
+            top: 0;
+            bottom: 0;
+            width: 320px;
+            background: var(--panel-card);
+            border-right: 1px solid var(--panel-border);
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.55);
+            z-index: 50;
+            padding: 16px;
+            overflow-y: auto;
+            transition: left 0.18s ease;
+        }
+
+        .points-drawer.show {
+            left: 0;
+        }
+
+        .points-drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            margin-bottom: 6px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .points-drawer-sub {
+            color: #64748b;
+            font-size: 11.5px;
+            margin: 0 0 10px;
+        }
+
+        .points-drawer-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 45;
+        }
+
+        .points-drawer-backdrop.show {
+            display: block;
+        }
+
         /* --- POINT EDITOR (graphical, commissioning-tool-style point blocks) --- */
         .point-editor-sub {
             color: #64748b;
@@ -880,7 +980,7 @@
             border: 1px solid #166534;
             border-radius: 6px;
             padding: 20px 24px;
-            max-width: 420px;
+            max-width: 440px;
             margin: 16px;
             color: #86efac;
             box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
@@ -888,8 +988,49 @@
             line-height: 1.5;
         }
 
-        .modal-box .modal-ok-btn {
+        /* Save to Panel now drives three modal states off this one box:
+           default (green) = success, .loading (teal) = saving in progress,
+           .error (red) = rejected/failed. */
+        .modal-box.loading {
+            border-color: var(--siemens-teal);
+            color: #7dd3fc;
+        }
+
+        .modal-box.error {
+            border-color: #7f1d1d;
+            color: #fca5a5;
+        }
+
+        .modal-box .modal-actions {
             margin-top: 16px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .modal-box .modal-error-list {
+            margin-top: 10px;
+            max-height: 220px;
+            overflow-y: auto;
+            font-size: 12.5px;
+            color: #fca5a5;
+        }
+
+        .modal-box .modal-error-list div {
+            padding: 4px 0;
+            border-top: 1px solid rgba(127, 29, 29, 0.6);
+        }
+
+        .modal-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-top-color: currentColor;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: -3px;
+            animation: spin 0.7s linear infinite;
         }
 
         .sim-trace {
@@ -1141,11 +1282,25 @@
     <div id="pointTooltip"></div>
 
     <div id="panelAcceptedModal" class="modal-overlay">
-        <div class="modal-box">
+        <div class="modal-box" id="panelModalBox">
             <div id="panelAcceptedModalText"></div>
-            <button type="button" class="btn-gen modal-ok-btn" style="width: auto; padding: 8px 20px;"
-                onclick="closePanelAcceptedModal()">OK</button>
+            <div id="panelModalActions" class="modal-actions"></div>
         </div>
+    </div>
+
+    <button type="button" id="programPointsTab" class="points-tab-strip" onclick="toggleProgramPointsDrawer()">
+        📌 PROGRAM POINTS <span id="programPointsTabCount"></span>
+    </button>
+    <div id="programPointsDrawerBackdrop" class="points-drawer-backdrop" onclick="toggleProgramPointsDrawer()"></div>
+    <div id="programPointsDrawer" class="points-drawer">
+        <div class="points-drawer-header">
+            <span>📌 Program Points</span>
+            <button type="button" class="win-icon-btn" onclick="toggleProgramPointsDrawer()">✕ Close</button>
+        </div>
+        <p class="points-drawer-sub">Every point in this scenario, ready to copy as many times as you need --
+            points stay listed here even after you've used them, since real sequences often reference the same
+            point on more than one line.</p>
+        <div id="programPointsList"></div>
     </div>
 
     <div class="container">
@@ -1650,19 +1805,20 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                         "Generate Scenario." Want to drill one specific piece of equipment instead of a random
                         mix -- just AHUs, just chillers, just pumps? Open the <strong>Equipment Focus</strong>
                         section at the bottom of that same tab and pick a tile. Write your
-                        program, click "Save to Panel" to compile it -- it runs the first scan automatically. From
-                        there, force a point to whatever value you want with Command, then click "Run Next Cycle" to
-                        step forward one scan at a time and watch exactly how your code reacts. Click "✅ Check Program Accuracy" to have the
-                        simulator run your saved code against a set of real values from the sequence and confirm
-                        every point reacts the way the sequence calls for. Stuck? The ❔ Help button gives extra
-                        guidance on the sequence without handing you the answer.</p>
+                        program, then click "Save to Panel" -- it compiles your code and checks it against the
+                        sequence's real-world test cases in one step, exactly like uploading to a real panel, and
+                        only accepts it once both pass. From there, force a point to whatever value you want with
+                        Command and watch your program react to it live, or click "▶ New Simulation" for a fresh
+                        set of point values. Stuck? The ❔ Help button gives extra guidance on the sequence without
+                        handing you the answer, and the 📌 Program Points tab on the left keeps every point in the
+                        scenario one click away to copy, even ones you've already used.</p>
                 </div>
             </div>
         </div>
 
         <!-- TAB: PROGRAM EDITOR -->
         <div class="tab-panel active" id="tab-editor">
-            <div class="card" style="margin-bottom: 15px;">
+            <div class="card" id="promptCard" style="margin-bottom: 15px;">
                 <div
                     style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                     <div class="card-title" style="margin: 0; border: none;">Controller Sequence Prompt</div>
@@ -1709,8 +1865,6 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 </div>
             </div>
 
-            <div class="card" id="notUsedPanel" style="display: none; margin-bottom: 15px;"></div>
-
             <div class="editor-layout">
                 <div class="card">
                     <div class="card-title"
@@ -1724,21 +1878,16 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     <div style="margin-bottom: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <button onclick="saveToPanel()" id="saveToPanelBtn" class="btn-gen"
                             style="width: auto; padding: 8px 16px;">💾 Save to Panel</button>
-                        <button onclick="runSimulationUI()" id="runSimBtn" class="btn-gen" disabled
+                        <button onclick="newSimulationUI()" id="runSimBtn" class="btn-gen" disabled
                             title="Save to Panel first -- the simulator only runs code the panel has accepted"
-                            style="width: auto; padding: 8px 16px;">▶ Run Next Cycle</button>
-                        <button onclick="checkProgramUI()" id="checkProgramBtn" class="btn-gen" disabled
-                            title="Save to Panel first -- accuracy checking runs the panel-accepted code through the sequence's test cases"
-                            style="width: auto; padding: 8px 16px; background: #14532d;">✅ Check Program
-                            Accuracy</button>
-                        <span style="color: #64748b; font-size: 11px;">Save to Panel compiles and uploads your code
-                            (like a real panel would) and runs the first scan automatically; each click of Run Next
-                            Cycle then steps forward exactly one more scan from the current point values and traces
-                            exactly what each line does. Force a point with Command, then click Run Next Cycle to
-                            see how your program reacts -- nothing re-simulates until you ask it to. Check Program
-                            Accuracy runs it against a set of real-world values from the sequence and confirms your
-                            points react the way the sequence calls for. Results appear in the Point Editor panel to
-                            the right.</span>
+                            style="width: auto; padding: 8px 16px;">▶ New Simulation</button>
+                        <span style="color: #64748b; font-size: 11px;">Save to Panel compiles your code, checks it
+                            against the sequence's test cases, and only accepts it once both pass -- exactly like
+                            uploading to a real panel. Once accepted, forcing a point with Command immediately shows
+                            how your program reacts to it, live, the same way a real panel would. Click New
+                            Simulation whenever you want every point to take a fresh random reading, as if time had
+                            moved forward to a new moment. Results appear in the Point Editor panel to the
+                            right.</span>
                     </div>
 
                     <div class="win-toolbar">
@@ -1775,11 +1924,13 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     </div>
 
                     <div class="cheat-box">
-                        <strong>Color Key:</strong>
-                        <span class="syn-point">■ Black (Points, $LOC/$ARG, Operators)</span> |
-                        <span class="syn-cond">■ Blue (IF/THEN/ELSE + ON/OFF/SET as commands)</span> |
-                        <span class="syn-action">■ Maroon (ON/OFF as a value)</span> |
-                        <span class="syn-comment">■ Green (Comments)</span>
+                        <strong>Color Key</strong>
+                        <div class="cheat-box-items">
+                            <span class="syn-point">■ Black (Points, $LOC/$ARG, Operators)</span>
+                            <span class="syn-cond">■ Blue (IF/THEN/ELSE + ON/OFF/SET as commands)</span>
+                            <span class="syn-action">■ Maroon (ON/OFF as a value)</span>
+                            <span class="syn-comment">■ Green (Comments)</span>
+                        </div>
                     </div>
 
                     <div class="issues-panel" id="issuesPanel" style="display: none;"></div>
@@ -1796,24 +1947,23 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                             see its points here.</span>
                     </div>
 
-                    <div id="savePanelResult" class="terminal-out"
-                        style="display: none; margin-top: 12px; height: auto; max-height: 400px;"></div>
-
                     <div id="simResults" style="margin-top: 12px;">
-                        <span style="color: #64748b; font-size: 13px;">Save to Panel to compile your code and run the
-                            first scan automatically, then click Run Next Cycle whenever you want to step forward one
-                            more scan, or Check Program Accuracy to test it against the sequence automatically.</span>
+                        <span style="color: #64748b; font-size: 13px;">Save to Panel to compile and validate your
+                            code against the sequence -- once it's accepted, force a point with Command to see your
+                            program react live, or click New Simulation for a fresh set of point values.</span>
                     </div>
 
                     <div id="checkResults" style="margin-top: 12px;"></div>
 
                     <div class="cheat-box" style="margin-top: 12px;">
-                        <strong>Block Color Key:</strong>
-                        <span style="color:#38bdf8;">■ Blue -- normal/auto</span> |
-                        <span style="color:#34d399;">■ Green -- point ON</span> |
-                        <span style="color:#facc15;">■ Yellow -- in alarm</span> |
-                        <span style="color:#f87171;">■ Black -- failed / not doing what the program calls
-                            for</span>
+                        <strong>Block Color Key</strong>
+                        <div class="cheat-box-items">
+                            <span style="color:#38bdf8;">■ Blue -- normal/auto</span>
+                            <span style="color:#34d399;">■ Green -- point ON</span>
+                            <span style="color:#facc15;">■ Yellow -- in alarm</span>
+                            <span style="color:#f87171;">■ Black -- failed / not doing what the program calls
+                                for</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2376,27 +2526,30 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         }
 
         // Last point values produced by the simulator (Save to Panel's
-        // automatic first scan, or a Run Next Cycle step) -- read by the
-        // hover tooltip so it can show a live value alongside a point's
-        // type, and used to seed the NEXT cycle so state carries forward
-        // instead of re-randomizing everything on every step. Null until
-        // the student runs something.
+        // automatic first scan, a New Simulation click, or a point reacting
+        // to a Command/Relinquish) -- read by the hover tooltip so it can
+        // show a live value alongside a point's type, and used to seed the
+        // NEXT reaction so state carries forward instead of re-randomizing
+        // everything every time a point is forced. Null until the student
+        // runs something.
         let lastSimSnapshot = null;
 
         // How many scans have run since the current program was accepted --
         // purely a display counter (shown in the Point Values / Execution
         // Trace headers as "Cycle #N") so the student can tell how far
-        // they've stepped. Resets to 0 every time setPanelAccepted() runs,
-        // fresh accept or not, since either way the running program state
-        // is starting over.
+        // things have moved. Reset to 0 every time setPanelAccepted() runs
+        // (fresh accept or not) and every time New Simulation fires a fresh
+        // reading; incremented by one each time a Command/Relinquish makes
+        // the program react.
         let scanCount = 0;
 
-        // Gates the "Run Next Cycle" button: only usable once "Save to
-        // Panel" has actually accepted the current code, mirroring a real
-        // panel -- you don't get to step a program forward until it's been
-        // uploaded. Any edit to the code (see lintAndHighlight()) or a
-        // fresh scenario invalidates this, since the code the panel
-        // accepted no longer matches what's in the editor.
+        // Gates the "New Simulation" button and point Command/Relinquish
+        // reactions: only usable once "Save to Panel" has actually accepted
+        // the current code, mirroring a real panel -- you don't get to run
+        // or force a program that hasn't been uploaded. Any edit to the
+        // code (see lintAndHighlight()) or a fresh scenario invalidates
+        // this, since the code the panel accepted no longer matches what's
+        // in the editor.
         let panelAccepted = false;
 
         function setPanelAccepted(accepted) {
@@ -2404,8 +2557,6 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             scanCount = 0;
             const btn = document.getElementById("runSimBtn");
             if (btn) btn.disabled = !accepted;
-            const checkBtn = document.getElementById("checkProgramBtn");
-            if (checkBtn) checkBtn.disabled = !accepted;
             if (accepted) {
                 // A freshly-accepted program is a clean start, same as
                 // power-cycling a real panel -- don't carry forward point
@@ -2413,8 +2564,8 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 lastSimSnapshot = null;
             } else {
                 // The code changed (or the panel rejected it) since the last
-                // Check Program Accuracy run, so any "failed" (black) blocks
-                // from that stale run no longer mean anything -- clear them.
+                // save, so any "failed" (black) blocks from that stale
+                // accuracy check no longer mean anything -- clear them.
                 lastCheckMismatches = new Set();
                 renderPointBlocks();
             }
@@ -2431,15 +2582,16 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         // driven purely by whatever the student's program does with it.
         // The override map (forcedValueState) doubles as the "force" input
         // to runSimulation(), exactly like the old force-values list did,
-        // so Save to Panel / Run Simulation / Check Program Accuracy all
-        // honor a Command automatically with no separate plumbing.
+        // so Save to Panel's accuracy check, New Simulation, and a point
+        // reacting to a Command all honor it automatically with no
+        // separate plumbing.
         let forcedValueState = {};
         let editingPointName = null;
         let editingPendingValue = null;
-        // Point names whose last Check Program Accuracy run came back wrong
-        // -- i.e. the program didn't drive them the way the sequence calls
-        // for. Colors that block black until the next successful Save to
-        // Panel (a code edit invalidates it, same as panelAccepted).
+        // Point names whose last Save to Panel accuracy check came back
+        // wrong -- i.e. the program didn't drive them the way the sequence
+        // calls for. Colors that block black until the next successful
+        // Save to Panel (a code edit invalidates it, same as panelAccepted).
         let lastCheckMismatches = new Set();
 
         function getForcedValues() {
@@ -2586,16 +2738,12 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
 
         // Applies (or clears) a manual override on a point -- pressing a
         // value then hitting Command, exactly like a real panel's point
-        // graphic. This ONLY updates what the block displays (via
-        // currentPointDisplayValue(), which already prefers a forced value
-        // over the last simulated one) -- it does NOT re-run the program.
-        // That's deliberate: forcing a point is the student setting up a
-        // condition to test, not asking "what does my program do right
-        // now" -- they get to force as many points as they want and only
-        // find out how the program reacts once they explicitly click Run
-        // Next Cycle. Re-simulating on every Command used to make it look
-        // like changing one point was reshuffling every other point too,
-        // which made it impossible to tell what was actually reacting.
+        // graphic. Once the panel has accepted a program, this immediately
+        // makes the program react to the change (see reactToPointChange()
+        // below) -- seeded from the last known snapshot rather than a fresh
+        // random re-roll, so only the points the program's own logic
+        // actually recalculates from this change move; anything the
+        // program doesn't reference stays exactly where it was.
         function commandPoint(name) {
             const p = activePoints.find(pt => pt.name === name);
             if (!p) return;
@@ -2607,14 +2755,14 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             forcedValueState[name] = value;
             editingPointName = null;
             editingPendingValue = null;
-            renderPointBlocks();
+            reactToPointChange();
         }
 
         function relinquishPoint(name) {
             delete forcedValueState[name];
             editingPointName = null;
             editingPendingValue = null;
-            renderPointBlocks();
+            reactToPointChange();
         }
 
         // --- TAB SWITCHING ---
@@ -2641,8 +2789,9 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
 
         // --- LIVE LINTER ---
         // Lightweight, deterministic checks that run on every keystroke (no
-        // network call). This is NOT a substitute for Check Program Accuracy
-        // -- it just catches obvious slips instantly:
+        // network call). This is NOT a substitute for the accuracy check
+        // Save to Panel runs against the sequence's test cases -- it just
+        // catches obvious slips instantly:
         //   - missing/duplicate leading line numbers
         //   - unbalanced parentheses / quotes
         //   - a line that's just point names with no actual logic
@@ -2742,7 +2891,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             });
 
             const missingPoints = activePoints.filter(p => !usedPointNames.has(p.name));
-            return { issuesByLine, missingPoints };
+            return { issuesByLine, missingPoints, usedPointNames };
         }
 
         function renderIssuesPanel(issuesByLine) {
@@ -2775,38 +2924,48 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             panel.style.display = "block";
         }
 
-        // Shown in its own card between the Controller Sequence Prompt and
-        // the Program Editor, so students see at a glance which required
-        // points they haven't wired into their code yet -- much easier to
-        // spot than buried at the bottom of the editor's issues panel.
-        // Collapsed/expanded state persists across re-renders within the
-        // session (e.g. as you type) but resets to expanded for a freshly
-        // generated scenario, via resetNotUsedPanelCollapse() below.
-        let notUsedPanelCollapsed = false;
+        // Lives in a slide-out drawer (📌 Program Points tab, left edge of
+        // the screen) rather than a block above the editor, so the whole
+        // point list is one click away without eating vertical space that
+        // would push the code editor further down the page. Unlike the
+        // old inline "not used yet" list, points are NEVER removed once
+        // referenced -- a used point still shows up (just marked "used"),
+        // since real sequences often need the same point wired into more
+        // than one line and a student should be able to copy it again.
+        let programPointsDrawerOpen = false;
 
-        function toggleNotUsedPanel() {
-            notUsedPanelCollapsed = !notUsedPanelCollapsed;
-            const body = document.getElementById("notUsedPanelBody");
-            const btn = document.getElementById("notUsedPanelToggle");
-            if (body) body.style.display = notUsedPanelCollapsed ? "none" : "block";
-            if (btn) btn.textContent = notUsedPanelCollapsed ? "▸ Show" : "▾ Hide";
+        function toggleProgramPointsDrawer() {
+            programPointsDrawerOpen = !programPointsDrawerOpen;
+            const drawer = document.getElementById("programPointsDrawer");
+            const backdrop = document.getElementById("programPointsDrawerBackdrop");
+            if (drawer) drawer.classList.toggle("show", programPointsDrawerOpen);
+            if (backdrop) backdrop.classList.toggle("show", programPointsDrawerOpen);
         }
 
-        function resetNotUsedPanelCollapse() {
-            notUsedPanelCollapsed = false;
+        function closeProgramPointsDrawer() {
+            programPointsDrawerOpen = false;
+            const drawer = document.getElementById("programPointsDrawer");
+            const backdrop = document.getElementById("programPointsDrawerBackdrop");
+            if (drawer) drawer.classList.remove("show");
+            if (backdrop) backdrop.classList.remove("show");
         }
 
-        function renderNotUsedPanel(missingPoints) {
-            const panel = document.getElementById("notUsedPanel");
-            if (!panel) return;
+        function renderProgramPointsPanel(usedPointNames) {
+            const tab = document.getElementById("programPointsTab");
+            const countSpan = document.getElementById("programPointsTabCount");
+            const list = document.getElementById("programPointsList");
+            if (!tab || !list) return;
 
-            if (!missingPoints.length) {
-                panel.style.display = "none";
-                panel.innerHTML = "";
+            if (!activePoints.length) {
+                tab.style.display = "none";
+                closeProgramPointsDrawer();
                 return;
             }
+            tab.style.display = "block";
+            if (countSpan) countSpan.textContent = `(${activePoints.length})`;
 
-            const rows = missingPoints.map(p => {
+            list.innerHTML = activePoints.map(p => {
+                const used = usedPointNames.has(p.name);
                 // HTML-escape for the data attribute -- the browser decodes
                 // entities back to real characters when it parses the
                 // attribute, so btn.dataset.point in copyPointName() below
@@ -2814,23 +2973,17 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 // baked in, ready to paste straight into the editor.
                 const nameAttr = p.name.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
                 return `
-                <div style="padding:5px 0; border-top:1px solid var(--panel-border); font-size:12.5px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                    <div style="flex:1; min-width:0;">
-                        <span style="color:#c2410c;">"${p.name}"</span>
-                        <span style="color:#64748b;"> (${p.type}${p.kind ? " · " + p.kind : ""})</span>
-                        -- ${p.desc}
+                <div style="padding:7px 0; border-top:1px solid var(--panel-border); font-size:12.5px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                        <div style="flex:1; min-width:0;">
+                            <span style="color:${used ? "#34d399" : "#c2410c"};">"${p.name}"</span>
+                            <span style="color:#64748b;"> (${p.type}${p.kind ? " · " + p.kind : ""})</span>
+                        </div>
+                        <button type="button" class="win-icon-btn point-copy-btn" data-point="${nameAttr}" style="width:auto; flex-shrink:0; padding:2px 8px; font-size:11px;" onclick="copyPointName(this)" title="Copy the point name in quotes, ready to paste into your code -- as many times as you need">⧉ Copy</button>
                     </div>
-                    <button type="button" class="win-icon-btn point-copy-btn" data-point="${nameAttr}" style="width:auto; flex-shrink:0; padding:2px 8px; font-size:11px;" onclick="copyPointName(this)" title="Copy the point name in quotes, ready to paste into your code">⧉ Copy</button>
+                    <div style="color:#64748b; margin-top:3px;">${used ? "✓ used in your code" : "○ not used yet"} -- ${p.desc}</div>
                 </div>`;
             }).join("");
-
-            panel.innerHTML =
-                `<div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleNotUsedPanel()">` +
-                `<span style="color:#fbbf24; font-weight:bold; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">📌 Points Not Yet Used In Your Code (${missingPoints.length})</span>` +
-                `<button type="button" id="notUsedPanelToggle" class="win-icon-btn" style="width:auto; padding:2px 8px; font-size:11px;" onclick="event.stopPropagation(); toggleNotUsedPanel();">${notUsedPanelCollapsed ? "▸ Show" : "▾ Hide"}</button>` +
-                `</div>` +
-                `<div id="notUsedPanelBody" style="display:${notUsedPanelCollapsed ? "none" : "block"};">${rows}</div>`;
-            panel.style.display = "block";
         }
 
         // Copies the point name pre-quoted, e.g. "AHU1.SAF.SS" -- ready to
@@ -2880,7 +3033,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             // code the panel ran no longer matches what's in the editor.
             if (panelAccepted) setPanelAccepted(false);
 
-            const { issuesByLine, missingPoints } = lintCode(rawText);
+            const { issuesByLine, usedPointNames } = lintCode(rawText);
 
             // Escape HTML first so nothing user-typed is interpreted as markup
             const escaped = rawText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -2915,7 +3068,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
 
             highlight.innerHTML = outputLines.join("");
             renderIssuesPanel(issuesByLine);
-            renderNotUsedPanel(missingPoints);
+            renderProgramPointsPanel(usedPointNames);
         }
 
         // --- AUTO LINE NUMBERING ---
@@ -3056,8 +3209,9 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             btn.innerHTML = `<span class="spinner"></span>Generating...`;
             promptBox.innerHTML = `<span style="color:#64748b;">Loading sequence...</span>`;
 
-            // New scenario -- hide any old help panel and check results.
-            resetNotUsedPanelCollapse();
+            // New scenario -- hide any old help panel, check results, and
+            // the Program Points drawer (if it was left open).
+            closeProgramPointsDrawer();
             resetResultSectionCollapse();
             const helpPanel = document.getElementById("helpPanel");
             if (helpPanel) { helpPanel.style.display = "none"; helpPanel.innerHTML = ""; }
@@ -3114,7 +3268,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 return;
             }
             const helpText = currentScenario.help ||
-                "No extra guidance written for this one yet -- re-read the sequence prompt above and work through each condition one at a time, then check your work with Run Next Cycle.";
+                "No extra guidance written for this one yet -- re-read the sequence prompt above and work through each condition one at a time, then check your work by Commanding a few different values and watching your program react.";
             panel.style.display = "block";
             panel.innerHTML = `<strong style="color:#fbbf24;">❔ Sequence Help</strong><div style="margin-top:6px;">${helpText}</div>`;
         }
@@ -3240,47 +3394,6 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
 
             html += `<div id="resultSection_accuracyCheck" style="display:${resultSectionCollapsed.accuracyCheck ? "none" : "block"};">${bodyHtml}</div>`;
             out.innerHTML = html;
-        }
-
-        function checkProgramUI() {
-            const btn = document.getElementById("checkProgramBtn");
-            const out = document.getElementById("checkResults");
-            if (!out) return;
-
-            if (!currentScenario) {
-                out.innerHTML = `<span style="color:#f87171;">No scenario loaded yet. Generate a scenario first.</span>`;
-                return;
-            }
-            const checks = currentScenario.checks;
-            if (!checks || !checks.length) {
-                out.innerHTML = `<div class="sim-section-title">Automated Accuracy Check</div>` +
-                    `<span style="color:#94a3b8; font-size:13px;">Automated verification isn't available for this scenario yet -- use Run Next Cycle with a few different Commanded values to test your logic by hand against the sequence prompt above.</span>`;
-                return;
-            }
-
-            const originalLabel = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = `<span class="spinner"></span>Checking...`;
-            try {
-                const results = runProgramChecks(checks);
-                // Show the last test case's actual simulated values in the
-                // Point Editor blocks -- so a point a check just proved
-                // (e.g. an alarm tripping ON) visually reflects that state
-                // instead of the blocks sitting on whatever was last shown
-                // by Run Simulation / Command.
-                for (let i = results.length - 1; i >= 0; i--) {
-                    if (results[i].finalSnapshot) {
-                        lastSimSnapshot = results[i].finalSnapshot;
-                        break;
-                    }
-                }
-                renderCheckResults(results);
-            } catch (err) {
-                out.innerHTML = `<div class="sim-error-box">Accuracy check crashed unexpectedly: ${err.message}</div>`;
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalLabel;
-            }
         }
 
         // --- POINT TYPE REFERENCE (single clickable list) ---
@@ -3410,21 +3523,21 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         }
 
         // --- SAVE TO PANEL ---
-        // Mimics uploading a program to a real field panel: the panel only
-        // reports pass/fail at upload time (not as you type), rejects the
-        // program outright on any syntax error, and otherwise loads it and
-        // runs it, showing the live values it settles on -- same engine as
-        // the Simulator tab, just gated behind a compile check first and
-        // framed as an authoritative "did the panel accept this" moment.
+        // Mimics uploading a program to a real field panel end to end, all
+        // in one action: a "Saving..." popup while it works, a syntax/
+        // runtime compile check, and -- if this scenario has automated test
+        // cases -- running the program against them too, all before the
+        // panel will actually accept it. A program only gets to "PANEL
+        // SAVED SUCCESSFULLY" once it compiles clean AND (when there's
+        // something to check it against) actually does what the sequence
+        // calls for; anything short of that comes back as a Program Error
+        // instead, exactly like a panel refusing a bad upload.
         function saveToPanel() {
             const code = document.getElementById("codeEditor").value;
-            const resultDiv = document.getElementById("savePanelResult");
             const btn = document.getElementById("saveToPanelBtn");
 
-            resultDiv.style.display = "block";
-
             if (!code.trim()) {
-                resultDiv.innerHTML = `<div class="sim-error-box">Write some PPCL code before saving to the panel.</div>`;
+                showPanelErrorModal("Write some PPCL code before saving to the panel.", []);
                 return;
             }
 
@@ -3439,74 +3552,138 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 });
 
             if (errorMessages.length) {
-                resultDiv.innerHTML =
-                    `<div class="sim-error-box" style="background:#2a0f0f; border-color:#7f1d1d; color:#fca5a5;">` +
-                    `⛔ PANEL REJECTED -- ${errorMessages.length} syntax error${errorMessages.length !== 1 ? "s" : ""} found. Fix these and try again:</div>` +
-                    errorMessages.map(m => `<div class="sim-error-box">⚠ ${m}</div>`).join("");
+                setPanelAccepted(false);
+                showPanelErrorModal(
+                    `${errorMessages.length} syntax error${errorMessages.length !== 1 ? "s" : ""} found -- fix these and save again:`,
+                    errorMessages
+                );
                 return;
             }
 
+            showPanelSavingModal();
+
             const originalLabel = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = `<span class="spinner"></span>Uploading...`;
+            btn.innerHTML = `<span class="spinner"></span>Saving...`;
 
             // Small delay purely for feel -- mimics a real panel upload.
             setTimeout(() => {
                 try {
-                    // Run once here purely as a compile/runtime-error check --
-                    // its point values are intentionally NOT shown and NOT
-                    // stored as lastSimSnapshot, since they'd use a different
-                    // random starting roll than the values the auto-run first
-                    // cycle (triggered once the student dismisses the PANEL
-                    // ACCEPTED popup) produces and displays. Showing both
-                    // would just show two different numbers for the same
-                    // point and confuse the student about which one is real.
                     const result = runSimulation(1, getForcedValues());
 
                     if (result.runtimeErrors && result.runtimeErrors.length) {
                         setPanelAccepted(false);
-                        resultDiv.innerHTML =
-                            `<div class="sim-error-box" style="background:#2a0f0f; border-color:#7f1d1d; color:#fca5a5;">` +
-                            `⛔ PANEL REJECTED -- syntax compiled, but the program failed at runtime:</div>` +
-                            result.runtimeErrors.map(m => `<div class="sim-error-box">⚠ ${m}</div>`).join("");
+                        showPanelErrorModal("Syntax compiled, but the program failed at runtime:", result.runtimeErrors);
                         return;
                     }
 
+                    // Compiles and runs clean -- now confirm it actually
+                    // behaves the way the sequence calls for, if this
+                    // scenario has automated test cases. Compiling isn't
+                    // enough on its own to call the save a success.
+                    const checkResultsDiv = document.getElementById("checkResults");
+                    const checks = currentScenario && currentScenario.checks;
+                    let verifiedAccuracy = false;
+                    if (checks && checks.length) {
+                        const checkRunResults = runProgramChecks(checks);
+                        for (let i = checkRunResults.length - 1; i >= 0; i--) {
+                            if (checkRunResults[i].finalSnapshot) { lastSimSnapshot = checkRunResults[i].finalSnapshot; break; }
+                        }
+                        renderCheckResults(checkRunResults);
+                        const passCount = checkRunResults.filter(r => r.pass).length;
+                        if (passCount !== checkRunResults.length) {
+                            setPanelAccepted(false);
+                            showPanelErrorModal(
+                                `${checkRunResults.length - passCount} of ${checkRunResults.length} automated accuracy check${checkRunResults.length !== 1 ? "s" : ""} failed -- your code compiles, but isn't doing what the sequence calls for yet. See the Automated Accuracy Check results below for exactly which point(s) didn't react correctly.`,
+                                []
+                            );
+                            return;
+                        }
+                        verifiedAccuracy = true;
+                    } else if (checkResultsDiv) {
+                        checkResultsDiv.innerHTML = "";
+                    }
+
                     setPanelAccepted(true);
-                    resultDiv.style.display = "none";
-                    resultDiv.innerHTML = "";
-                    showPanelAcceptedModal();
+                    showPanelAcceptedModal(verifiedAccuracy);
                 } catch (err) {
                     setPanelAccepted(false);
-                    resultDiv.innerHTML = `<div class="sim-error-box">Panel crashed unexpectedly: ${err.message}</div>`;
+                    showPanelErrorModal("Panel crashed unexpectedly:", [err.message]);
                 } finally {
                     btn.disabled = false;
                     btn.innerHTML = originalLabel;
                 }
-            }, 400);
+            }, 500);
         }
 
-        // Shown once the panel accepts a program. Dismissing it (OK) is what
+        // The one modal element (#panelAcceptedModal) drives all three
+        // states below by swapping its box color/text/buttons -- no
+        // hide/show flicker between "Saving..." and the state that follows
+        // it, since the overlay just stays up and its content changes.
+
+        function showPanelSavingModal() {
+            const modal = document.getElementById("panelAcceptedModal");
+            const box = document.getElementById("panelModalBox");
+            const text = document.getElementById("panelAcceptedModalText");
+            const actions = document.getElementById("panelModalActions");
+            if (box) box.className = "modal-box loading";
+            if (text) text.innerHTML = `<span class="modal-spinner"></span>Saving to panel -- compiling your code and checking it against the sequence...`;
+            if (actions) actions.innerHTML = "";
+            if (modal) modal.classList.add("show");
+        }
+
+        // Program Error -- OK just dismisses, nothing runs. panelAccepted
+        // is already false by the time this is called (see saveToPanel()).
+        function showPanelErrorModal(headline, detailLines) {
+            const modal = document.getElementById("panelAcceptedModal");
+            const box = document.getElementById("panelModalBox");
+            const text = document.getElementById("panelAcceptedModalText");
+            const actions = document.getElementById("panelModalActions");
+            if (box) box.className = "modal-box error";
+            if (text) {
+                text.innerHTML = `⛔ PROGRAM ERROR -- ${headline}` +
+                    (detailLines.length
+                        ? `<div class="modal-error-list">${detailLines.map(m => `<div>⚠ ${m}</div>`).join("")}</div>`
+                        : "");
+            }
+            if (actions) actions.innerHTML = `<button type="button" class="btn-gen" style="width:auto; padding:8px 20px;" onclick="closePanelErrorModal()">OK</button>`;
+            if (modal) modal.classList.add("show");
+        }
+
+        function closePanelErrorModal() {
+            const modal = document.getElementById("panelAcceptedModal");
+            if (modal) modal.classList.remove("show");
+        }
+
+        // Shown once the panel accepts a program. Dismissing it is what
         // actually kicks off the first scan -- see closePanelAcceptedModal()
         // -- so the student always gets one deliberate moment before the
         // simulator starts producing values, rather than it happening
         // silently in the background the instant Save to Panel finishes.
-        function showPanelAcceptedModal() {
+        function showPanelAcceptedModal(verifiedAccuracy) {
             const modal = document.getElementById("panelAcceptedModal");
+            const box = document.getElementById("panelModalBox");
             const text = document.getElementById("panelAcceptedModalText");
+            const actions = document.getElementById("panelModalActions");
+            if (box) box.className = "modal-box";
             if (text) {
-                text.innerHTML = `✓ PANEL ACCEPTED -- program compiled clean and is now running. Click "Run Next Cycle" below whenever you want to step it forward one scan at a time.`;
+                const body = verifiedAccuracy
+                    ? `your program compiled clean and is doing what the sequence calls for`
+                    : `your program compiled clean and is now running`;
+                text.innerHTML = `✓ PANEL SAVED SUCCESSFULLY -- ${body}. Click "Run Simulation" below to bring it online and see live point values.`;
             }
+            if (actions) actions.innerHTML = `<button type="button" class="btn-gen" style="width:auto; padding:8px 20px;" onclick="closePanelAcceptedModal()">▶ Run Simulation</button>`;
             if (modal) modal.classList.add("show");
         }
 
         function closePanelAcceptedModal() {
             const modal = document.getElementById("panelAcceptedModal");
             if (modal) modal.classList.remove("show");
-            // Auto-run the first scan now that the student has acknowledged
-            // the popup -- after this, nothing re-simulates until they
-            // explicitly click Run Next Cycle again.
-            runSimulationUI();
+            // Dismissing this modal IS the "Run Simulation" action -- gives
+            // the student one deliberate moment where saving the panel
+            // visibly brings their points online, instead of values just
+            // appearing in the background.
+            newSimulationUI();
         }
 
         // ===================================================================
@@ -4207,7 +4384,15 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         // scan instead of everything re-randomizing. This is also what the
         // PANEL ACCEPTED popup's OK button triggers, for the automatic
         // first scan.
-        function runSimulationUI() {
+        // "New Simulation" -- every point (except whatever's currently
+        // Commanded) takes a completely fresh random reading, as if time
+        // had moved forward to a new, unrelated moment. Deliberately
+        // ignores lastSimSnapshot entirely rather than carrying anything
+        // forward, which is what makes this different from a point
+        // reacting to a Command (see reactToPointChange() below) -- this
+        // is a new scan of the world, not the program reacting to one
+        // input changing.
+        function newSimulationUI() {
             const btn = document.getElementById("runSimBtn");
             const results = document.getElementById("simResults");
             const code = document.getElementById("codeEditor").value;
@@ -4222,19 +4407,9 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             btn.innerHTML = `<span class="spinner"></span>Running...`;
 
             try {
-                // Seed every point at its last known value (not a fresh
-                // random re-roll) before layering the student's Commanded
-                // overrides on top -- a step only moves the points the
-                // program's own logic actually reacts to, exactly like a
-                // real panel continuing its scan rather than powering back
-                // up from scratch. lastSimSnapshot is null right after a
-                // fresh Save to Panel (see setPanelAccepted()), so the very
-                // first scan still gives every unforced point its normal
-                // random starting value.
-                const seed = Object.assign({}, lastSimSnapshot || {}, getForcedValues());
-                const result = runSimulation(1, seed);
+                const result = runSimulation(1, getForcedValues());
                 lastSimSnapshot = result.finalSnapshot;
-                scanCount++;
+                scanCount = 1;
                 renderSimulationResults(result);
                 renderPointBlocks();
             } catch (err) {
@@ -4245,10 +4420,35 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             }
         }
 
+        // Runs whenever a point is Commanded or Relinquished (once the
+        // panel has accepted a program) -- seeds every point at its last
+        // known value, then layers the updated forced values on top, so
+        // only the points the program's own logic actually recalculates
+        // from this change move. Anything the program doesn't reference
+        // stays exactly where it was, exactly like forcing one point on a
+        // real, already-running panel and watching the rest of the logic
+        // react to it live -- not a fresh random re-roll of the whole
+        // world (that's what New Simulation is for).
+        function reactToPointChange() {
+            renderPointBlocks();
+            if (!panelAccepted) return;
+
+            const results = document.getElementById("simResults");
+            try {
+                const seed = Object.assign({}, lastSimSnapshot || {}, getForcedValues());
+                const result = runSimulation(1, seed);
+                lastSimSnapshot = result.finalSnapshot;
+                scanCount++;
+                if (results) renderSimulationResults(result);
+                renderPointBlocks();
+            } catch (err) {
+                if (results) results.innerHTML = `<div class="sim-error-box">Simulation crashed unexpectedly: ${err.message}</div>`;
+            }
+        }
+
         // --- COLLAPSIBLE RESULT SECTIONS ---
         // Point Values, Execution Trace, and Automated Accuracy Check can
-        // all get long, so each is individually collapsible -- same show/
-        // hide pattern as the "Points Not Yet Used" panel above. State
+        // all get long, so each is individually collapsible. State
         // persists across re-renders within the tab (e.g. re-running the
         // simulation keeps a section you collapsed collapsed) but always
         // starts back at expanded once a fresh scenario loads, via
