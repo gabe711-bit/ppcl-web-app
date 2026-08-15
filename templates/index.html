@@ -397,6 +397,11 @@
             padding: 8px;
             border-radius: 4px;
             margin-top: 10px;
+            text-align: center;
+            line-height: 1.7;
+            overflow-wrap: break-word;
+            box-sizing: border-box;
+            width: 100%;
         }
 
         /* --- STATUS BAR (emulates real panel footer) --- */
@@ -3070,6 +3075,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
 
             // New scenario -- hide any old help panel and check results.
             resetNotUsedPanelCollapse();
+            resetResultSectionCollapse();
             const helpPanel = document.getElementById("helpPanel");
             if (helpPanel) { helpPanel.style.display = "none"; helpPanel.innerHTML = ""; }
             const checkResults = document.getElementById("checkResults");
@@ -3216,7 +3222,13 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     if (!ok) pass = false;
                     details.push({ pointName, expected, actual: got, ok });
                 });
-                return { index: i, pass, note: check.note, details, error: null };
+                // Carry the raw finalSnapshot along too (not just pass/fail
+                // details) so the caller can update the Point Editor's live
+                // display -- otherwise a point like an alarm that a check
+                // just proved goes ON never actually shows ON/yellow in the
+                // blocks, since Check Program Accuracy runs its own
+                // isolated simulations that never touched lastSimSnapshot.
+                return { index: i, pass, note: check.note, details, error: null, finalSnapshot: result.finalSnapshot };
             });
         }
 
@@ -3243,8 +3255,9 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             lastCheckMismatches = mismatches;
             renderPointBlocks();
 
-            let html = `<div class="sim-section-title">Automated Accuracy Check -- ${passCount}/${total} passed</div>`;
-            html += `<div style="margin:6px 0 10px; padding:8px 10px; border-radius:4px; font-weight:bold; ${allPass
+            let html = collapsibleResultHeader("accuracyCheck", `Automated Accuracy Check -- ${passCount}/${total} passed`);
+
+            let bodyHtml = `<div style="margin:6px 0 10px; padding:8px 10px; border-radius:4px; font-weight:bold; ${allPass
                 ? "background:#052e1a; color:#34d399; border-left:3px solid #34d399;"
                 : "background:#2a0a0a; color:#f87171; border-left:3px solid #f87171;"}">` +
                 `${allPass ? "✓ All test cases passed -- your program reacts the way the sequence calls for." : "✗ Some test cases failed -- see below."}</div>`;
@@ -3252,18 +3265,20 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             results.forEach((r, i) => {
                 const icon = r.pass ? "✓" : "✗";
                 const color = r.pass ? "#34d399" : "#f87171";
-                html += `<div style="margin-bottom:8px; padding:8px 10px; background:#0a0f14; border-radius:4px; border-left:3px solid ${color};">`;
-                html += `<div style="color:${color}; font-weight:bold;">${icon} Test ${i + 1}${r.note ? ": " + r.note : ""}</div>`;
+                bodyHtml += `<div style="margin-bottom:8px; padding:8px 10px; background:#0a0f14; border-radius:4px; border-left:3px solid ${color};">`;
+                bodyHtml += `<div style="color:${color}; font-weight:bold;">${icon} Test ${i + 1}${r.note ? ": " + r.note : ""}</div>`;
                 if (r.error) {
-                    html += `<div style="color:#f87171; font-size:12.5px; margin-top:4px;">${r.error}</div>`;
+                    bodyHtml += `<div style="color:#f87171; font-size:12.5px; margin-top:4px;">${r.error}</div>`;
                 } else {
                     r.details.forEach(d => {
                         const dcolor = d.ok ? "#94a3b8" : "#fca5a5";
-                        html += `<div style="color:${dcolor}; font-size:12.5px; margin-top:2px;">"${d.pointName}" -- expected ${formatCheckValue(d.pointName, d.expected)}, got ${formatCheckValue(d.pointName, d.actual)} ${d.ok ? "✓" : "✗"}</div>`;
+                        bodyHtml += `<div style="color:${dcolor}; font-size:12.5px; margin-top:2px;">"${d.pointName}" -- expected ${formatCheckValue(d.pointName, d.expected)}, got ${formatCheckValue(d.pointName, d.actual)} ${d.ok ? "✓" : "✗"}</div>`;
                     });
                 }
-                html += `</div>`;
+                bodyHtml += `</div>`;
             });
+
+            html += `<div id="resultSection_accuracyCheck" style="display:${resultSectionCollapsed.accuracyCheck ? "none" : "block"};">${bodyHtml}</div>`;
             out.innerHTML = html;
         }
 
@@ -3288,6 +3303,17 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             btn.innerHTML = `<span class="spinner"></span>Checking...`;
             try {
                 const results = runProgramChecks(checks);
+                // Show the last test case's actual simulated values in the
+                // Point Editor blocks -- so a point a check just proved
+                // (e.g. an alarm tripping ON) visually reflects that state
+                // instead of the blocks sitting on whatever was last shown
+                // by Run Simulation / Command.
+                for (let i = results.length - 1; i >= 0; i--) {
+                    if (results[i].finalSnapshot) {
+                        lastSimSnapshot = results[i].finalSnapshot;
+                        break;
+                    }
+                }
                 renderCheckResults(results);
             } catch (err) {
                 out.innerHTML = `<div class="sim-error-box">Accuracy check crashed unexpectedly: ${err.message}</div>`;
@@ -4157,6 +4183,36 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             }
         }
 
+        // --- COLLAPSIBLE RESULT SECTIONS ---
+        // Point Values, Execution Trace, and Automated Accuracy Check can
+        // all get long, so each is individually collapsible -- same show/
+        // hide pattern as the "Points Not Yet Used" panel above. State
+        // persists across re-renders within the tab (e.g. re-running the
+        // simulation keeps a section you collapsed collapsed) but always
+        // starts back at expanded once a fresh scenario loads, via
+        // resetResultSectionCollapse() below.
+        let resultSectionCollapsed = { pointValues: false, executionTrace: false, accuracyCheck: false };
+
+        function resetResultSectionCollapse() {
+            resultSectionCollapsed = { pointValues: false, executionTrace: false, accuracyCheck: false };
+        }
+
+        function toggleResultSection(key) {
+            resultSectionCollapsed[key] = !resultSectionCollapsed[key];
+            const body = document.getElementById(`resultSection_${key}`);
+            const btn = document.getElementById(`resultToggle_${key}`);
+            if (body) body.style.display = resultSectionCollapsed[key] ? "none" : "block";
+            if (btn) btn.textContent = resultSectionCollapsed[key] ? "▸ Show" : "▾ Hide";
+        }
+
+        function collapsibleResultHeader(key, titleHtml) {
+            const collapsed = resultSectionCollapsed[key];
+            return `<div class="sim-section-title" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleResultSection('${key}')">` +
+                `<span>${titleHtml}</span>` +
+                `<button type="button" id="resultToggle_${key}" class="win-icon-btn" style="width:auto; padding:2px 8px; font-size:11px;" onclick="event.stopPropagation(); toggleResultSection('${key}');">${collapsed ? "▸ Show" : "▾ Hide"}</button>` +
+                `</div>`;
+        }
+
         function renderSimulationResults(result) {
             const results = document.getElementById("simResults");
             let html = "";
@@ -4180,21 +4236,22 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     result.undeclaredPoints.map(p => `<div>"${p}"</div>`).join("") + `</div>`;
             }
 
-            html += `<div class="sim-section-title">Point Values (initial -> final after ${document.getElementById("simCycles").value} cycle(s))</div>`;
-            html += `<div class="sim-point-row header"><div>Point</div><div>Type</div><div>Initial</div><div></div><div>Final</div></div>`;
+            html += collapsibleResultHeader("pointValues", `Point Values (initial -> final after ${document.getElementById("simCycles").value} cycle(s))`);
+            let pointValuesHtml = `<div class="sim-point-row header"><div>Point</div><div>Type</div><div>Initial</div><div></div><div>Final</div></div>`;
             activePoints.forEach(p => {
                 const initVal = result.initialSnapshot[p.name];
                 const finalVal = result.finalSnapshot[p.name];
                 const changed = initVal !== finalVal;
-                html += `<div class="sim-point-row ${changed ? "changed" : ""}">` +
+                pointValuesHtml += `<div class="sim-point-row ${changed ? "changed" : ""}">` +
                     `<div style="color:#c2410c;">"${p.name}"</div>` +
                     `<div style="color:#94a3b8;">${p.type}</div>` +
                     `<div>${formatPointValue(p, initVal)}</div><div style="color:#64748b;">${changed ? "→" : ""}</div>` +
                     `<div style="color:${changed ? "#38bdf8" : "#cbd5e1"}; font-weight:${changed ? "bold" : "normal"};">${formatPointValue(p, finalVal)}</div>` +
                     `</div>`;
             });
+            html += `<div id="resultSection_pointValues" style="display:${resultSectionCollapsed.pointValues ? "none" : "block"};">${pointValuesHtml}</div>`;
 
-            html += `<div class="sim-section-title">Execution Trace</div>`;
+            html += collapsibleResultHeader("executionTrace", "Execution Trace");
             const traceHtml = result.trace.map(line => {
                 if (line.startsWith("__CYCLE__")) {
                     return `<div class="cycle-header">── Cycle ${line.replace("__CYCLE__", "")} ──</div>`;
@@ -4202,7 +4259,8 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 const cls = line.includes("ERROR") || line.includes("⚠") ? "trace-error" : "";
                 return `<div class="${cls}">${line}</div>`;
             }).join("");
-            html += `<div class="sim-trace">${traceHtml || "(nothing executed)"}</div>`;
+            html += `<div id="resultSection_executionTrace" style="display:${resultSectionCollapsed.executionTrace ? "none" : "block"};">` +
+                `<div class="sim-trace">${traceHtml || "(nothing executed)"}</div></div>`;
 
             results.innerHTML = html;
         }
