@@ -665,10 +665,15 @@
            slide-out drawer instead of an inline block so it never adds to
            the page's scroll height. */
         .points-tab-strip {
+            /* The app's global `button { width: 100%; }` rule would
+               otherwise stretch this fixed-position tab across the full
+               viewport width -- explicit width/height here keeps it a
+               small strip regardless of that default. */
             position: fixed;
             left: 0;
             top: 50%;
             transform: translateY(-50%);
+            width: auto;
             writing-mode: vertical-rl;
             background: var(--siemens-teal);
             color: #04202a;
@@ -678,6 +683,8 @@
             font-weight: 700;
             font-size: 11px;
             letter-spacing: 1px;
+            line-height: 1.4;
+            white-space: nowrap;
             cursor: pointer;
             z-index: 40;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.45);
@@ -1295,7 +1302,8 @@
     <div id="programPointsDrawer" class="points-drawer">
         <div class="points-drawer-header">
             <span>📌 Program Points</span>
-            <button type="button" class="win-icon-btn" onclick="toggleProgramPointsDrawer()">✕ Close</button>
+            <button type="button" class="win-icon-btn" style="width: auto; padding: 2px 8px; font-size: 11px;"
+                onclick="toggleProgramPointsDrawer()">✕ Close</button>
         </div>
         <p class="points-drawer-sub">Every point in this scenario, ready to copy as many times as you need --
             points stay listed here even after you've used them, since real sequences often reference the same
