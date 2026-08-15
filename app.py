@@ -504,9 +504,9 @@ TEMPLATES = [
                 {"name": f"%X%{sys}.CHW.ET.ALM",
                     "desc": "Cooling Water High Temp Alarm (virtual point)", "type": "BV", "kind": "virtual"},
                 {"name": f"%X%{sys}.DAT",
-                    "desc": "Discharge Air Temp Sensor", "type": "AI", "kind": "physical"},
+                    "desc": "Compressor Discharge Air Temp Sensor (hot compressed air leaving the compressor head, not comfort-conditioned air)", "type": "AI", "kind": "physical"},
                 {"name": f"%X%{sys}.DAT.HI",
-                    "desc": "Discharge Air High Limit (virtual point)", "type": "AV", "kind": "virtual"},
+                    "desc": "Compressor Discharge High Limit (virtual point)", "type": "AV", "kind": "virtual"},
                 {"name": f"%X%{sys}.DAT.ALM",
                     "desc": "Discharge High Temp Alarm (virtual point)", "type": "BV", "kind": "virtual"}
             ],

@@ -4054,6 +4054,25 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 subroutineRanges.push({ start: startIdx, end: endIdx });
             });
 
+            // A handful of AV (analog virtual) points hold a small
+            // enumerated status code rather than a continuous value --
+            // e.g. BLDG.OCC.STATE is always exactly 0 or 1, never a
+            // percentage-style float -- and a program written against
+            // ".EQ. 0"/".EQ. 1" breaks the moment the simulator hands it
+            // something like 47.3. Matched by name since these are a
+            // fixed, known set of points across the templates.
+            const DISCRETE_CODE_POINTS = [
+                { re: /\.OCC\.STATE$/i, min: 0, max: 1 },   // 0 = Occupied, 1 = Unoccupied
+                { re: /\.LL\.STAT$/i, min: 1, max: 2 },      // 1 = unit 1 lead, 2 = unit 2 lead
+                { re: /\.MAN\.LEAD$/i, min: 0, max: 2 },     // 0 = Auto, 1/2 = forced lead
+            ];
+            const randomDiscreteCode = (name) => {
+                for (const { re, min, max } of DISCRETE_CODE_POINTS) {
+                    if (re.test(name)) return min + Math.floor(Math.random() * (max - min + 1));
+                }
+                return null;
+            };
+
             // Room temperature (RMT) and its associated comfort setpoints
             // (cooling/heating/warmup/cooldown setpoints) should never get a
             // random default outside the range a real occupied space sits
@@ -4065,24 +4084,61 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             // Every other kind of HVAC temperature/setpoint point gets its
             // own realistic band too -- a chilled-water temp defaulting to
             // 3 degrees, or a hot-water setpoint defaulting to 8 degrees,
-            // is just as unrealistic as a bad room temp default. Matched
-            // against the terminal segment(s) of the point name (plus an
-            // optional trailing .SP/.HI/.LO/.ACT limit or setpoint suffix),
-            // ordered most-specific-medium first since e.g. "CHWS" would
-            // otherwise also match a looser "water temp" pattern.
+            // is just as unrealistic as a bad room temp default. Classified
+            // mainly off each point's desc text rather than its bare name,
+            // because the same abbreviation means different physical
+            // quantities in different scenarios -- e.g. "DAT" is an AHU's
+            // comfort-conditioned Discharge AIR Temp in most templates, but
+            // a rotary screw compressor's hot Discharge (compressed) Air
+            // Temp -- 200+ degrees, by design -- in the "Air Compressor"
+            // template. A name-based fallback covers the handful of points
+            // (mostly setpoints) whose desc doesn't repeat the parent
+            // category word. Checked in order, most specific/exceptional
+            // category first, since e.g. a "cooling water" match must be
+            // caught before a later, looser "air temp" pattern could grab
+            // it. No air-side comfort temp or setpoint here ever goes below
+            // 55 or above 90 -- non-air points (chiller/condenser/tower/
+            // boiler water, refrigerant/compressed-air discharge gas) get
+            // their own realistic non-comfort bands instead.
             const HVAC_TEMP_RANGES = [
-                // Chilled water supply/return/entering temps + setpoints.
-                { re: /\.(CHWS|CHWR|CHW)\.?(T|ET)(\.(SP|HI|LO|ACT))?$/i, min: 38, max: 60 },
-                // Hot water supply/return temps + setpoints.
-                { re: /\.(HWS|HWR|HW)\.?T?(\.(SP|HI|LO|ACT))?$/i, min: 120, max: 200 },
-                // Condenser water supply/return temps + setpoints.
-                { re: /\.(CWS|CWR)\.T(\.(SP|HI|LO|ACT))?$/i, min: 65, max: 95 },
-                // General HVAC air-side temps (discharge/mixed/outside/
-                // return/entering/leaving/supply air) + their setpoints
-                // and high/low limits -- a supply fan discharge air temp
-                // realistically lands in the same comfort-adjacent 50-90
-                // range as a room temp, never near freezing or scalding.
-                { re: /\.(DAT|MAT|OAT|RAT|EAT|SAT|LAT)(\.(SP|HI|LO|ACT))?$/i, min: 50, max: 90 },
+                // Compressor/refrigerant discharge gas temp, or a
+                // compressed-air discharge temp -- both run 150-280F by
+                // design, nowhere near comfort air range.
+                { test: (n, d) => /compressor discharge/i.test(d), min: 150, max: 280 },
+                // Boiler stack/flue gas temp.
+                { test: (n, d) => /\bstack\b|\bflue\b/i.test(d), min: 300, max: 700 },
+                // Cooling tower basin water temp -- freeze-protection
+                // scenarios legitimately swing this well below comfort-air
+                // range, so it gets its own band rather than the 55-90 floor.
+                { test: (n, d) => /basin/i.test(d), re: /\.BASIN\./i, min: 30, max: 60 },
+                // Condenser/"cooling" water entering or supply temp (some
+                // templates call the condenser loop "Cooling Water" rather
+                // than "Condenser Water" -- both mean the same thing here).
+                {
+                    test: (n, d) => /(condenser|cooling) water/i.test(d) && !/(differential|pressure|flow)/i.test(d),
+                    re: /\.(CWS|CWR)\.T(\.(SP|HI|LO|ACT))?$/i, min: 65, max: 95
+                },
+                // Chilled water supply/return/entering temp + setpoints.
+                {
+                    // Name fallback only covers ".CHW.ST" (Chilled Water
+                    // Supply Temp) -- NOT ".CHW.ET", which some templates
+                    // use for "Cooling Water Entering Temp" (the condenser
+                    // loop, caught by the desc-based test above instead).
+                    test: (n, d) => /chilled water/i.test(d) && !/(differential|pressure|flow)/i.test(d),
+                    re: /\.(CHWS|CHWR)\.?T?(\.(SP|HI|LO|ACT))?$|\.CHW\.ST(\.(SP|HI|LO|ACT))?$/i, min: 38, max: 60
+                },
+                // Hot water supply/return temp + setpoints.
+                {
+                    test: (n, d) => /hot water/i.test(d) && !/(differential|pressure|flow)/i.test(d),
+                    re: /\.(HWS|HWR)\.?T?(\.(SP|HI|LO|ACT))?$|\.HW\.SP$/i, min: 120, max: 200
+                },
+                // Everything else that's a comfort air-side temp/setpoint/
+                // limit -- discharge, mixed, outside, return, entering,
+                // supply, leaving air -- stays in the realistic 55-90 band.
+                {
+                    test: (n, d) => /\bair temp\b/i.test(d),
+                    re: /\.(DAT|MAT|OAT|RAT|EAT|SAT|LAT)(\.(SP|HI(\.CRIT)?|LO|ACT))?$/i, min: 55, max: 90
+                },
             ];
 
             // Percent-style analog points (fan speed commands, valve/
@@ -4090,9 +4146,10 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             // the old wide-open range for these and anything unrecognized
             // (pressures, flows, misc virtuals) where no single realistic
             // band applies across every scenario.
-            const randomAnalogDefault = (name) => {
-                for (const { re, min, max } of HVAC_TEMP_RANGES) {
-                    if (re.test(name)) return Math.round((min + Math.random() * (max - min)) * 10) / 10;
+            const randomAnalogDefault = (name, desc) => {
+                for (const { test, re, min, max } of HVAC_TEMP_RANGES) {
+                    const matched = (test && test(name, desc || "")) || (re && re.test(name));
+                    if (matched) return Math.round((min + Math.random() * (max - min)) * 10) / 10;
                 }
                 return Math.round(Math.random() * 1000) / 10;
             };
@@ -4102,14 +4159,17 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             activePoints.forEach(p => {
                 let val;
                 const hasForced = forcedValues && Object.prototype.hasOwnProperty.call(forcedValues, p.name);
+                const discreteCode = hasForced ? null : randomDiscreteCode(p.name);
                 if (hasForced) {
                     val = forcedValues[p.name];
                 } else if (["DI", "DO", "BV"].includes(p.type)) {
                     val = Math.random() < 0.5 ? 0 : 1;
+                } else if (discreteCode !== null) {
+                    val = discreteCode;
                 } else if (isRoomTempPoint(p.name)) {
                     val = Math.round((55 + Math.random() * 35) * 10) / 10;
                 } else {
-                    val = randomAnalogDefault(p.name);
+                    val = randomAnalogDefault(p.name, p.desc);
                 }
                 pointTable.set(p.name, val);
                 initialSnapshot[p.name] = val;
