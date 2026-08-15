@@ -387,6 +387,18 @@
             gap: 6px 16px;
         }
 
+        /* Flex items refuse to shrink below their own text width by
+           default -- on a narrow Program Editor column, the longest
+           entry (Black/Points) would overflow past the right edge of
+           the box instead of wrapping, which is what made this look
+           uncentered/cut off. min-width:0 plus break-word lets a long
+           entry wrap onto its own second line and stay inside the box. */
+        .cheat-box-items span {
+            min-width: 0;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
         /* --- STATUS BAR (emulates real panel footer) --- */
         .status-bar {
             margin-top: 16px;
@@ -664,22 +676,29 @@
            student to scroll back up to find it again. Lives in a
            slide-out drawer instead of an inline block so it never adds to
            the page's scroll height. */
+        #programEditorCard {
+            /* Anchors the tab below so it's positioned against THIS
+               card's own left edge -- not the browser viewport -- and
+               scrolls together with it, looking like a bookmark tab
+               attached to the card rather than a floating strip. */
+            position: relative;
+        }
+
         .points-tab-strip {
             /* The app's global `button { width: 100%; }` rule would
-               otherwise stretch this fixed-position tab across the full
-               viewport width -- explicit width/height here keeps it a
-               small strip regardless of that default. */
-            position: fixed;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
+               otherwise stretch this tab across the full card width --
+               explicit width here keeps it a small strip regardless of
+               that default. */
+            position: absolute;
+            left: -30px;
+            top: 60px;
             width: auto;
             writing-mode: vertical-rl;
             background: var(--siemens-teal);
             color: #04202a;
             border: none;
-            border-radius: 0 6px 6px 0;
-            padding: 16px 7px;
+            border-radius: 6px 0 0 6px;
+            padding: 16px 8px;
             font-weight: 700;
             font-size: 11px;
             letter-spacing: 1px;
@@ -1295,9 +1314,6 @@
         </div>
     </div>
 
-    <button type="button" id="programPointsTab" class="points-tab-strip" onclick="toggleProgramPointsDrawer()">
-        📌 PROGRAM POINTS <span id="programPointsTabCount"></span>
-    </button>
     <div id="programPointsDrawerBackdrop" class="points-drawer-backdrop" onclick="toggleProgramPointsDrawer()"></div>
     <div id="programPointsDrawer" class="points-drawer">
         <div class="points-drawer-header">
@@ -1874,7 +1890,11 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             </div>
 
             <div class="editor-layout">
-                <div class="card">
+                <div class="card" id="programEditorCard">
+                    <button type="button" id="programPointsTab" class="points-tab-strip"
+                        onclick="toggleProgramPointsDrawer()">
+                        📌 PROGRAM POINTS <span id="programPointsTabCount"></span>
+                    </button>
                     <div class="card-title"
                         style="display: flex; justify-content: space-between; align-items: center; border: none; margin: 0 0 8px;">
                         <span>Program Editor</span>
