@@ -860,6 +860,38 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         }
 
+        /* --- PANEL ACCEPTED MODAL --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-box {
+            background: #0b131e;
+            border: 1px solid #166534;
+            border-radius: 6px;
+            padding: 20px 24px;
+            max-width: 420px;
+            margin: 16px;
+            color: #86efac;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .modal-box .modal-ok-btn {
+            margin-top: 16px;
+        }
+
         .sim-trace {
             background: #070c12;
             border: 1px solid var(--panel-border);
@@ -1107,6 +1139,14 @@
     </header>
 
     <div id="pointTooltip"></div>
+
+    <div id="panelAcceptedModal" class="modal-overlay">
+        <div class="modal-box">
+            <div id="panelAcceptedModalText"></div>
+            <button type="button" class="btn-gen modal-ok-btn" style="width: auto; padding: 8px 20px;"
+                onclick="closePanelAcceptedModal()">OK</button>
+        </div>
+    </div>
 
     <div class="container">
 
@@ -1610,9 +1650,9 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                         "Generate Scenario." Want to drill one specific piece of equipment instead of a random
                         mix -- just AHUs, just chillers, just pumps? Open the <strong>Equipment Focus</strong>
                         section at the bottom of that same tab and pick a tile. Write your
-                        program, click "Save to Panel" to compile it, then "Run Simulation" right next to it to
-                        watch it execute against sample values -- you can even force specific starting values
-                        first to see exactly how your code reacts. Click "✅ Check Program Accuracy" to have the
+                        program, click "Save to Panel" to compile it -- it runs the first scan automatically. From
+                        there, force a point to whatever value you want with Command, then click "Run Next Cycle" to
+                        step forward one scan at a time and watch exactly how your code reacts. Click "✅ Check Program Accuracy" to have the
                         simulator run your saved code against a set of real values from the sequence and confirm
                         every point reacts the way the sequence calls for. Stuck? The ❔ Help button gives extra
                         guidance on the sequence without handing you the answer.</p>
@@ -1686,23 +1726,19 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                             style="width: auto; padding: 8px 16px;">💾 Save to Panel</button>
                         <button onclick="runSimulationUI()" id="runSimBtn" class="btn-gen" disabled
                             title="Save to Panel first -- the simulator only runs code the panel has accepted"
-                            style="width: auto; padding: 8px 16px;">▶ Run Simulation</button>
-                        <select id="simCycles" style="width: 100px; margin-bottom: 0;">
-                            <option value="1" selected>1 cycle</option>
-                            <option value="5">5 cycles</option>
-                            <option value="10">10 cycles</option>
-                            <option value="25">25 cycles</option>
-                            <option value="50">50 cycles</option>
-                        </select>
+                            style="width: auto; padding: 8px 16px;">▶ Run Next Cycle</button>
                         <button onclick="checkProgramUI()" id="checkProgramBtn" class="btn-gen" disabled
                             title="Save to Panel first -- accuracy checking runs the panel-accepted code through the sequence's test cases"
                             style="width: auto; padding: 8px 16px; background: #14532d;">✅ Check Program
                             Accuracy</button>
                         <span style="color: #64748b; font-size: 11px;">Save to Panel compiles and uploads your code
-                            (like a real panel would); Run Simulation re-executes it once and traces exactly what
-                            each line does; Check Program Accuracy runs it against a set of real-world values from
-                            the sequence and confirms your points react the way the sequence calls for. Results
-                            appear in the Point Editor panel to the right.</span>
+                            (like a real panel would) and runs the first scan automatically; each click of Run Next
+                            Cycle then steps forward exactly one more scan from the current point values and traces
+                            exactly what each line does. Force a point with Command, then click Run Next Cycle to
+                            see how your program reacts -- nothing re-simulates until you ask it to. Check Program
+                            Accuracy runs it against a set of real-world values from the sequence and confirms your
+                            points react the way the sequence calls for. Results appear in the Point Editor panel to
+                            the right.</span>
                     </div>
 
                     <div class="win-toolbar">
@@ -1764,9 +1800,9 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                         style="display: none; margin-top: 12px; height: auto; max-height: 400px;"></div>
 
                     <div id="simResults" style="margin-top: 12px;">
-                        <span style="color: #64748b; font-size: 13px;">Save to Panel to compile your code, then Run
-                            Simulation to trace exactly what it does line by line, or Check Program Accuracy to test
-                            it against the sequence automatically.</span>
+                        <span style="color: #64748b; font-size: 13px;">Save to Panel to compile your code and run the
+                            first scan automatically, then click Run Next Cycle whenever you want to step forward one
+                            more scan, or Check Program Accuracy to test it against the sequence automatically.</span>
                     </div>
 
                     <div id="checkResults" style="margin-top: 12px;"></div>
@@ -2339,26 +2375,43 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             kcBumpProgress(id);
         }
 
-        // Last point values produced by either "Run Simulation" or "Save to
-        // Panel" -- read by the hover tooltip so it can show a live value
-        // alongside a point's type. Null until the student runs something.
+        // Last point values produced by the simulator (Save to Panel's
+        // automatic first scan, or a Run Next Cycle step) -- read by the
+        // hover tooltip so it can show a live value alongside a point's
+        // type, and used to seed the NEXT cycle so state carries forward
+        // instead of re-randomizing everything on every step. Null until
+        // the student runs something.
         let lastSimSnapshot = null;
 
-        // Gates the "Run Simulation" button: only usable once "Save to Panel"
-        // has actually accepted the current code, mirroring a real panel --
-        // you don't get to watch a program run until it's been uploaded.
-        // Any edit to the code (see lintAndHighlight()) or a fresh scenario
-        // invalidates this, since the code the panel accepted no longer
-        // matches what's in the editor.
+        // How many scans have run since the current program was accepted --
+        // purely a display counter (shown in the Point Values / Execution
+        // Trace headers as "Cycle #N") so the student can tell how far
+        // they've stepped. Resets to 0 every time setPanelAccepted() runs,
+        // fresh accept or not, since either way the running program state
+        // is starting over.
+        let scanCount = 0;
+
+        // Gates the "Run Next Cycle" button: only usable once "Save to
+        // Panel" has actually accepted the current code, mirroring a real
+        // panel -- you don't get to step a program forward until it's been
+        // uploaded. Any edit to the code (see lintAndHighlight()) or a
+        // fresh scenario invalidates this, since the code the panel
+        // accepted no longer matches what's in the editor.
         let panelAccepted = false;
 
         function setPanelAccepted(accepted) {
             panelAccepted = accepted;
+            scanCount = 0;
             const btn = document.getElementById("runSimBtn");
             if (btn) btn.disabled = !accepted;
             const checkBtn = document.getElementById("checkProgramBtn");
             if (checkBtn) checkBtn.disabled = !accepted;
-            if (!accepted) {
+            if (accepted) {
+                // A freshly-accepted program is a clean start, same as
+                // power-cycling a real panel -- don't carry forward point
+                // values from whatever was running before.
+                lastSimSnapshot = null;
+            } else {
                 // The code changed (or the panel rejected it) since the last
                 // Check Program Accuracy run, so any "failed" (black) blocks
                 // from that stale run no longer mean anything -- clear them.
@@ -2533,9 +2586,16 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
 
         // Applies (or clears) a manual override on a point -- pressing a
         // value then hitting Command, exactly like a real panel's point
-        // graphic. If the panel has already accepted a program, also
-        // re-runs a quick simulation right away so the block grid updates
-        // live instead of waiting for the student to click Run Simulation.
+        // graphic. This ONLY updates what the block displays (via
+        // currentPointDisplayValue(), which already prefers a forced value
+        // over the last simulated one) -- it does NOT re-run the program.
+        // That's deliberate: forcing a point is the student setting up a
+        // condition to test, not asking "what does my program do right
+        // now" -- they get to force as many points as they want and only
+        // find out how the program reacts once they explicitly click Run
+        // Next Cycle. Re-simulating on every Command used to make it look
+        // like changing one point was reshuffling every other point too,
+        // which made it impossible to tell what was actually reacting.
         function commandPoint(name) {
             const p = activePoints.find(pt => pt.name === name);
             if (!p) return;
@@ -2547,40 +2607,13 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             forcedValueState[name] = value;
             editingPointName = null;
             editingPendingValue = null;
-            refreshAfterOverrideChange();
+            renderPointBlocks();
         }
 
         function relinquishPoint(name) {
             delete forcedValueState[name];
             editingPointName = null;
             editingPendingValue = null;
-            refreshAfterOverrideChange();
-        }
-
-        function refreshAfterOverrideChange() {
-            if (panelAccepted) {
-                try {
-                    const cyclesEl = document.getElementById("simCycles");
-                    const cycles = cyclesEl ? (parseInt(cyclesEl.value, 10) || 1) : 1;
-                    // Seed every point at its last known value (not a fresh
-                    // random re-roll) before layering the student's actual
-                    // Command(s) on top. Without this, runSimulation() would
-                    // roll a brand-new random starting value for every OTHER
-                    // point on every single Command/Relinquish, making it
-                    // look like changing one point changes them all -- when
-                    // really it's just noise from re-randomizing points
-                    // nobody touched. Only points the program's own logic
-                    // actually reacts to should move; everything else holds
-                    // steady, same as a real field panel.
-                    const seed = Object.assign({}, lastSimSnapshot || {}, getForcedValues());
-                    const result = runSimulation(cycles, seed);
-                    lastSimSnapshot = result.finalSnapshot;
-                } catch (err) {
-                    // Leave lastSimSnapshot as-is if the program can't run right
-                    // now -- the block just shows its last-known value until
-                    // the next successful Run Simulation / Save to Panel.
-                }
-            }
             renderPointBlocks();
         }
 
@@ -3081,7 +3114,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 return;
             }
             const helpText = currentScenario.help ||
-                "No extra guidance written for this one yet -- re-read the sequence prompt above and work through each condition one at a time, then check your work with Run Simulation.";
+                "No extra guidance written for this one yet -- re-read the sequence prompt above and work through each condition one at a time, then check your work with Run Next Cycle.";
             panel.style.display = "block";
             panel.innerHTML = `<strong style="color:#fbbf24;">❔ Sequence Help</strong><div style="margin-top:6px;">${helpText}</div>`;
         }
@@ -3221,7 +3254,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             const checks = currentScenario.checks;
             if (!checks || !checks.length) {
                 out.innerHTML = `<div class="sim-section-title">Automated Accuracy Check</div>` +
-                    `<span style="color:#94a3b8; font-size:13px;">Automated verification isn't available for this scenario yet -- use Run Simulation with a few different Forced Starting Values to test your logic by hand against the sequence prompt above.</span>`;
+                    `<span style="color:#94a3b8; font-size:13px;">Automated verification isn't available for this scenario yet -- use Run Next Cycle with a few different Commanded values to test your logic by hand against the sequence prompt above.</span>`;
                 return;
             }
 
@@ -3423,10 +3456,11 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     // Run once here purely as a compile/runtime-error check --
                     // its point values are intentionally NOT shown and NOT
                     // stored as lastSimSnapshot, since they'd use a different
-                    // random starting roll than the values "Run Simulation"
-                    // below produces and displays. Showing both would just
-                    // show two different numbers for the same point and
-                    // confuse the student about which one is real.
+                    // random starting roll than the values the auto-run first
+                    // cycle (triggered once the student dismisses the PANEL
+                    // ACCEPTED popup) produces and displays. Showing both
+                    // would just show two different numbers for the same
+                    // point and confuse the student about which one is real.
                     const result = runSimulation(1, getForcedValues());
 
                     if (result.runtimeErrors && result.runtimeErrors.length) {
@@ -3439,8 +3473,9 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     }
 
                     setPanelAccepted(true);
-                    resultDiv.innerHTML = `<div class="sim-error-box" style="background:#0a2a17; border-color:#166534; color:#86efac;">` +
-                        `✓ PANEL ACCEPTED -- program compiled clean and is now running. Click "Run Simulation" below to see live point values and a full execution trace.</div>`;
+                    resultDiv.style.display = "none";
+                    resultDiv.innerHTML = "";
+                    showPanelAcceptedModal();
                 } catch (err) {
                     setPanelAccepted(false);
                     resultDiv.innerHTML = `<div class="sim-error-box">Panel crashed unexpectedly: ${err.message}</div>`;
@@ -3449,6 +3484,29 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     btn.innerHTML = originalLabel;
                 }
             }, 400);
+        }
+
+        // Shown once the panel accepts a program. Dismissing it (OK) is what
+        // actually kicks off the first scan -- see closePanelAcceptedModal()
+        // -- so the student always gets one deliberate moment before the
+        // simulator starts producing values, rather than it happening
+        // silently in the background the instant Save to Panel finishes.
+        function showPanelAcceptedModal() {
+            const modal = document.getElementById("panelAcceptedModal");
+            const text = document.getElementById("panelAcceptedModalText");
+            if (text) {
+                text.innerHTML = `✓ PANEL ACCEPTED -- program compiled clean and is now running. Click "Run Next Cycle" below whenever you want to step it forward one scan at a time.`;
+            }
+            if (modal) modal.classList.add("show");
+        }
+
+        function closePanelAcceptedModal() {
+            const modal = document.getElementById("panelAcceptedModal");
+            if (modal) modal.classList.remove("show");
+            // Auto-run the first scan now that the student has acknowledged
+            // the popup -- after this, nothing re-simulates until they
+            // explicitly click Run Next Cycle again.
+            runSimulationUI();
         }
 
         // ===================================================================
@@ -4082,10 +4140,16 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             };
         }
 
+        // Steps the running program forward by exactly ONE scan cycle --
+        // never more. Each click seeds from lastSimSnapshot (the point
+        // values the previous scan settled on) layered with whatever the
+        // student currently has Commanded, so state carries forward scan to
+        // scan instead of everything re-randomizing. This is also what the
+        // PANEL ACCEPTED popup's OK button triggers, for the automatic
+        // first scan.
         function runSimulationUI() {
             const btn = document.getElementById("runSimBtn");
             const results = document.getElementById("simResults");
-            const cycles = parseInt(document.getElementById("simCycles").value, 10);
             const code = document.getElementById("codeEditor").value;
 
             if (!code.trim()) {
@@ -4098,8 +4162,19 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             btn.innerHTML = `<span class="spinner"></span>Running...`;
 
             try {
-                const result = runSimulation(cycles, getForcedValues());
+                // Seed every point at its last known value (not a fresh
+                // random re-roll) before layering the student's Commanded
+                // overrides on top -- a step only moves the points the
+                // program's own logic actually reacts to, exactly like a
+                // real panel continuing its scan rather than powering back
+                // up from scratch. lastSimSnapshot is null right after a
+                // fresh Save to Panel (see setPanelAccepted()), so the very
+                // first scan still gives every unforced point its normal
+                // random starting value.
+                const seed = Object.assign({}, lastSimSnapshot || {}, getForcedValues());
+                const result = runSimulation(1, seed);
                 lastSimSnapshot = result.finalSnapshot;
+                scanCount++;
                 renderSimulationResults(result);
                 renderPointBlocks();
             } catch (err) {
@@ -4163,7 +4238,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     result.undeclaredPoints.map(p => `<div>"${p}"</div>`).join("") + `</div>`;
             }
 
-            html += collapsibleResultHeader("pointValues", `Point Values (initial -> final after ${document.getElementById("simCycles").value} cycle(s))`);
+            html += collapsibleResultHeader("pointValues", `Point Values (before -> after Cycle #${scanCount})`);
             let pointValuesHtml = `<div class="sim-point-row header"><div>Point</div><div>Type</div><div>Initial</div><div></div><div>Final</div></div>`;
             activePoints.forEach(p => {
                 const initVal = result.initialSnapshot[p.name];
@@ -4181,7 +4256,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             html += collapsibleResultHeader("executionTrace", "Execution Trace");
             const traceHtml = result.trace.map(line => {
                 if (line.startsWith("__CYCLE__")) {
-                    return `<div class="cycle-header">── Cycle ${line.replace("__CYCLE__", "")} ──</div>`;
+                    return `<div class="cycle-header">── Cycle #${scanCount} ──</div>`;
                 }
                 const cls = line.includes("ERROR") || line.includes("⚠") ? "trace-error" : "";
                 return `<div class="${cls}">${line}</div>`;
