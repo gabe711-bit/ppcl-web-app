@@ -112,35 +112,6 @@
             font-family: 'Consolas', 'Courier New', monospace;
         }
 
-        /* --- WRITE / EDIT MODE TOGGLE --- */
-        .mode-toggle {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 12px;
-        }
-
-        .mode-btn {
-            width: auto;
-            background: #0f1a26;
-            color: #94a3b8;
-            border: 1px solid var(--panel-border);
-            padding: 6px 14px;
-            font-size: 12px;
-            font-weight: 700;
-            border-radius: 4px;
-        }
-
-        .mode-btn:hover {
-            background: #16283b;
-            color: #cbd5e1;
-        }
-
-        .mode-btn.active {
-            background: var(--siemens-teal);
-            color: #fff;
-            border-color: var(--siemens-teal);
-        }
-
         /* Difficulty selector -- styled as Siemens network-hierarchy tiers
            (FLN device -> ALN/MEC controller -> Management level) instead of
            a plain colored-circle dropdown. */
@@ -1635,7 +1606,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 <div class="learn-section">
                     <h3>22. Where to go next</h3>
                     <p>Head to the <strong>Program Editor &amp; Simulator</strong> tab (F1), pick
-                        Beginner/Intermediate/Expert and Write New Code or Edit Existing Code, then click
+                        Beginner/Intermediate/Expert, then click
                         "Generate Scenario." Want to drill one specific piece of equipment instead of a random
                         mix -- just AHUs, just chillers, just pumps? Open the <strong>Equipment Focus</strong>
                         section at the bottom of that same tab and pick a tile. Write your
@@ -1652,12 +1623,6 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         <!-- TAB: PROGRAM EDITOR -->
         <div class="tab-panel active" id="tab-editor">
             <div class="card" style="margin-bottom: 15px;">
-                <div class="mode-toggle">
-                    <button class="mode-btn active" data-mode="write" onclick="setMode('write')">✏️ Write New
-                        Code</button>
-                    <button class="mode-btn" data-mode="edit" onclick="setMode('edit')">🔧 Edit Existing
-                        Code</button>
-                </div>
                 <div
                     style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                     <div class="card-title" style="margin: 0; border: none;">Controller Sequence Prompt</div>
@@ -1854,7 +1819,6 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
     <script>
         let currentScenario = null;
         let activePoints = [];
-        let currentMode = "write"; // "write" (blank slate) or "edit" (starter code + changed requirement)
         let currentDifficulty = "medium"; // "easy" | "medium" | "expert", set via the diff-btn tier selector
 
         function selectDifficulty(diff) {
@@ -2620,18 +2584,6 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             renderPointBlocks();
         }
 
-        function setMode(mode) {
-            currentMode = mode;
-            document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
-            document.getElementById("genScenarioBtn").innerHTML = mode === "edit"
-                ? "🎲 Generate Edit Task"
-                : "🎲 Generate Scenario";
-            document.getElementById("promptBox").innerHTML =
-                mode === "edit"
-                    ? `No edit task loaded. Pick a difficulty and click "Generate Edit Task" for starter code plus a changed requirement to implement.`
-                    : `No scenario loaded. Pick a difficulty and click "Generate Scenario" for a sequence to write, or just start typing your own PPCL below.`;
-        }
-
         // --- TAB SWITCHING ---
         function switchTab(name) {
             document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
@@ -3029,10 +2981,8 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         function newProgram() {
             const editor = document.getElementById("codeEditor");
             if (editor.value.trim() && !confirm("Clear the current program buffer?")) return;
-            // Keep the current scenario's section header if one is loaded
-            // (write mode only -- edit mode's buffer holds the given starter
-            // code, not a blank-slate header).
-            const label = (currentMode === "write" && currentScenario) ? currentScenario.title : undefined;
+            // Keep the current scenario's section header if one is loaded.
+            const label = currentScenario ? currentScenario.title : undefined;
             resetEditorToBlankSlate(label);
             editor.focus();
         }
@@ -3081,7 +3031,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             const checkResults = document.getElementById("checkResults");
             if (checkResults) checkResults.innerHTML = "";
 
-            const endpoint = currentMode === "edit" ? "/api/get-edit-scenario" : "/api/get-scenario";
+            const endpoint = "/api/get-scenario";
 
             try {
                 const res = await fetch(endpoint, {
@@ -3097,35 +3047,12 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
 
                 const badge = DIFFICULTY_BADGE[data.difficulty] || "";
 
-                if (currentMode === "edit") {
-                    // Grading/linting reads currentScenario.prompt -- point it at the
-                    // CHANGED requirement, since that's what the edited code must satisfy.
-                    currentScenario = { ...data, prompt: data.changed_prompt };
-                    promptBox.innerHTML = `${badge}<br><strong>${data.title}</strong>` +
-                        `<div style="margin-top:8px; color:#94a3b8;"><em>Original requirement (context -- this is what the starter code below already does):</em><br>${data.original_prompt}</div>` +
-                        `<div style="margin-top:10px; padding:8px; background:#3a1f0a55; border-left:3px solid #f59e0b; border-radius:2px;">` +
-                        `<strong style="color:#f59e0b;">⚠ CHANGE REQUIRED -- edit the code below to comply:</strong><br>${data.changed_prompt}</div>`;
-                    document.getElementById("statusPointCount").textContent = activePoints.length;
-                    // Edit mode starts from the given starter code, NOT a blank
-                    // slate -- but real PPCL programs always open with a header
-                    // comment naming the program, so auto-compile one here too,
-                    // the same way a fresh Write New Code buffer gets one. It's
-                    // numbered just below the starter code's own first line so
-                    // it can never collide with (or force renumbering of) any
-                    // GOTO/GOSUB targets already baked into that starter code.
-                    const editor = document.getElementById("codeEditor");
-                    const headerNum = START_LINE_NUM - LINE_NUM_STEP;
-                    editor.value = formatLineNumber(headerNum) + ` C --- ${data.title.toUpperCase()} PROGRAM ---\n` + data.starter_code;
-                    lintAndHighlight();
-                    updateStatusLine();
-                } else {
-                    currentScenario = data;
-                    const mlBadge = data.multiLine ? MULTILINE_BADGE : "";
-                    promptBox.innerHTML = `${badge}${mlBadge}<br><strong>${data.title}:</strong><br>${data.prompt}`;
-                    document.getElementById("statusPointCount").textContent = activePoints.length;
-                    // Fresh sequence, fresh buffer -- clear whatever was written for the last one.
-                    resetEditorToBlankSlate(data.title);
-                }
+                currentScenario = data;
+                const mlBadge = data.multiLine ? MULTILINE_BADGE : "";
+                promptBox.innerHTML = `${badge}${mlBadge}<br><strong>${data.title}:</strong><br>${data.prompt}`;
+                document.getElementById("statusPointCount").textContent = activePoints.length;
+                // Fresh sequence, fresh buffer -- clear whatever was written for the last one.
+                resetEditorToBlankSlate(data.title);
             } catch (err) {
                 promptBox.innerHTML = `<span style="color:#f87171;">Failed to load scenario: ${err.message}. Try again.</span>`;
             } finally {
