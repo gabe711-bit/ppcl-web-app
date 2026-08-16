@@ -385,6 +385,16 @@
             justify-content: center;
             align-items: center;
             gap: 6px 16px;
+            /* On a wide Program Editor column the four entries together
+               are almost as wide as the box itself, so "centered" had
+               nearly no slack to distribute and just looked like it
+               spanned edge to edge. Capping the row's width and
+               centering THAT via margin:auto forces it to wrap onto a
+               couple of shorter lines with real, visible whitespace on
+               both sides, so it unambiguously reads as centered instead
+               of full-bleed. */
+            max-width: 640px;
+            margin: 0 auto;
         }
 
         /* Flex items refuse to shrink below their own text width by
