@@ -1790,6 +1790,53 @@ TEMPLATES = [
                 {"force": {f"%X%{sys}.P1.FLT": 1, f"%X%{sys}.P2.FLT": 1}, "expect": {f"%X%{sys}.PUMP.ALM": 1}, "note": "both pumps faulted -- alarm on"}
             ]
         }
+    },
+    {
+        "title": "Heating Hot Water Plant Complete Sequence (Reset, Boiler Lead-Lag, Pump Lead-Lag)",
+        "difficulty": "expert",
+        "multiLine": True,
+        "systems": BOILER_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Heating Hot Water Plant Complete Sequence",
+            "prompt": f"This is a complete real-world heating hot water plant sequence -- everything a field tech would actually write for the plant as a whole. Two boilers, {sys}1 and {sys}2, share lead-lag duty, tracked by a Lead-Lag Status point (\"%X%{sys}.LL.STAT\", 1 = {sys}1 lead, 2 = {sys}2 lead): if the currently-lead boiler's own fault contact (\"%X%{sys}1.FLT\" or \"%X%{sys}2.FLT\") trips ON, swap Lead-Lag Status to the other boiler. The lead boiler only enables (\"%X%{sys}1.ENA\" or \"%X%{sys}2.ENA\") once flow is actually proven through it -- Flow Proven Status (\"%X%{sys}.FLOW.STAT\") ON -- and the standby boiler stays off. This plant also needs to survive a total BAS failure: if BAS Disabled (\"%X%{sys}.BAS.DIS\" -- a watchdog input, ON when the BAS has lost communication or failed) is ON, force BOTH boilers enabled regardless of lead-lag status or flow proof, so each one can operate independently on its own packaged controls and the building still gets heat with no controls network at all. Independent of all of that, the Hot Water Discharge Setpoint (\"%X%{sys}.HW.SP\" -- virtual) resets with Outside Air Temp (\"%X%{sys}.OAT\") to save energy: at 60 degrees OAT or warmer it's 120, at 0 degrees or colder it's 160, and between those two it's a straight linear reset -- the lead boiler's own packaged controls handle the actual firing-rate modulation to hit whatever this setpoint says. Two secondary hot water pumps, {sys}.P1 and {sys}.P2, share their own separate lead-lag duty, tracked by a Pump Lead-Lag Status point (\"%X%{sys}.PUMP.LL.STAT\", 1 = P1 lead, 2 = P2 lead): if the currently-lead pump's fault contact (\"%X%{sys}.P1.FLT\" or \"%X%{sys}.P2.FLT\") trips ON, swap Pump Lead-Lag Status to the other pump. Every scan, drive Pump 1 Enable (\"%X%{sys}.P1.ENA\") and Pump 2 Enable (\"%X%{sys}.P2.ENA\") to match whichever one Pump Lead-Lag Status currently says is lead. Separately, if either pump's fault contact is ON, turn ON a Pump Fault Alarm (\"%X%{sys}.PUMP.ALM\" -- virtual); otherwise turn it OFF. Whichever pump is currently lead should have a LOOP modulating its Pump Speed Output (\"%X%{sys}.P1.SPD\" or \"%X%{sys}.P2.SPD\") to hold Hot Water System Differential Pressure (\"%X%{sys}.DP\") at a Differential Pressure Setpoint (\"%X%{sys}.DP.SP\"); the standby pump's speed output should be held at 0.",
+            "points": [
+                {"name": f"%X%{sys}.OAT", "desc": "Outside Air Temp Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.HW.SP", "desc": "Hot Water Discharge Setpoint (virtual point, OAT-reset)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.BAS.DIS", "desc": "BAS Disabled Watchdog Input (ON when the BAS has lost comms or failed)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.LL.STAT", "desc": "Boiler Lead-Lag Status Code (virtual point, 1 = Boiler 1 lead, 2 = Boiler 2 lead)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}1.FLT", "desc": "Boiler 1 Fault Contact", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}2.FLT", "desc": "Boiler 2 Fault Contact", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.FLOW.STAT", "desc": "Flow Proven Status (flow switch, shared interlock for whichever boiler is lead)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}1.ENA", "desc": "Boiler 1 Enable Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}2.ENA", "desc": "Boiler 2 Enable Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.PUMP.LL.STAT", "desc": "Pump Lead-Lag Status Code (virtual point, 1 = P1 lead, 2 = P2 lead)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.P1.FLT", "desc": "Pump 1 Fault Contact", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.P2.FLT", "desc": "Pump 2 Fault Contact", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.PUMP.ALM", "desc": "Pump Fault Alarm (virtual point)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}.P1.ENA", "desc": "Secondary HW Pump 1 Enable Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.P2.ENA", "desc": "Secondary HW Pump 2 Enable Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.DP", "desc": "Hot Water System Differential Pressure Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.DP.SP", "desc": "Differential Pressure Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.P1.SPD", "desc": "Pump 1 Speed Control Output (0-100%)", "type": "AO", "kind": "physical"},
+                {"name": f"%X%{sys}.P2.SPD", "desc": "Pump 2 Speed Control Output (0-100%)", "type": "AO", "kind": "physical"}
+            ],
+            "help": "Flat, independent lines throughout -- PPCL here doesn't support nesting an IF inside a THEN/ELSE, and a LOOP has to be the only thing on its line. Use SEPARATE fault points per boiler/pump for each swap check (BLR1.FLT for the LL.STAT .EQ. 1 line, BLR2.FLT for the LL.STAT .EQ. 2 line) rather than one shared fault point for both directions -- with a shared point, both swap lines would fire back-to-back on the very same scan and the rotation would immediately bounce back to where it started. Order: (1) the OAT reset for HW.SP -- three lines (.GE. 60 pins 120, .LE. 0 pins 160, the middle band computes 160 - OAT * 0.6667); (2) the boiler swap -- two lines, IF LL.STAT .EQ. 1 .AND. BLR1.FLT .EQ. 1 THEN LL.STAT = 2, and the mirror using BLR2.FLT; (3) the boiler enable dispatch -- two lines reading the now-current LL.STAT plus FLOW.STAT, each with its own ELSE (IF LL.STAT .EQ. 1 .AND. FLOW.STAT .EQ. 1 THEN BLR1.ENA = 1 ELSE BLR1.ENA = 0, and the mirror for boiler 2); (4) the catastrophic-failure override -- IF BAS.DIS .EQ. 1 THEN BLR1.ENA = 1, BLR2.ENA = 1 -- placed AFTER step 3 so it overrides whatever the lead-lag dispatch just decided; (5) the pump swap, same shape as step 2 but using P1.FLT/P2.FLT and PUMP.LL.STAT; (6) the pump enable dispatch, same shape as step 3 but pumps don't need a flow interlock -- just IF PUMP.LL.STAT .EQ. 1 THEN P1.ENA=1, P2.ENA=0 and the mirror; (7) the pump fault alarm, one unrelated line ORing both pump fault contacts; (8) the pump-speed LOOPs -- four lines, one LOOP per pump gated on PUMP.LL.STAT picking it as lead, and one hold-at-0 line per pump gated on PUMP.LL.STAT picking the OTHER one as lead.",
+            "checks": [
+                {"force": {f"%X%{sys}.OAT": 70}, "expect": {f"%X%{sys}.HW.SP": 120}, "note": "OAT at/above 60 -- setpoint pinned at 120"},
+                {"force": {f"%X%{sys}.OAT": -10}, "expect": {f"%X%{sys}.HW.SP": 160}, "note": "OAT at/below 0 -- setpoint pinned at 160"},
+                {"force": {f"%X%{sys}.OAT": 30}, "tolerance": 1, "expect": {f"%X%{sys}.HW.SP": 140}, "note": "OAT halfway between 0 and 60 -- linearly interpolated to 140"},
+                {"force": {f"%X%{sys}.LL.STAT": 1, f"%X%{sys}.FLOW.STAT": 1, f"%X%{sys}1.FLT": 0, f"%X%{sys}2.FLT": 0, f"%X%{sys}.BAS.DIS": 0}, "expect": {f"%X%{sys}1.ENA": 1, f"%X%{sys}2.ENA": 0}, "note": "boiler 1 lead, flow proven, no fault -- boiler 1 runs alone"},
+                {"force": {f"%X%{sys}.LL.STAT": 1, f"%X%{sys}.FLOW.STAT": 0, f"%X%{sys}.BAS.DIS": 0}, "expect": {f"%X%{sys}1.ENA": 0}, "note": "flow not proven -- lead boiler stays off"},
+                {"force": {f"%X%{sys}.LL.STAT": 1, f"%X%{sys}1.FLT": 1, f"%X%{sys}2.FLT": 0, f"%X%{sys}.FLOW.STAT": 1, f"%X%{sys}.BAS.DIS": 0}, "expect": {f"%X%{sys}.LL.STAT": 2, f"%X%{sys}1.ENA": 0, f"%X%{sys}2.ENA": 1}, "note": "boiler 1 faults -- swaps to boiler 2"},
+                {"force": {f"%X%{sys}.LL.STAT": 2, f"%X%{sys}2.FLT": 1, f"%X%{sys}1.FLT": 0, f"%X%{sys}.FLOW.STAT": 1, f"%X%{sys}.BAS.DIS": 0}, "expect": {f"%X%{sys}.LL.STAT": 1, f"%X%{sys}2.ENA": 0, f"%X%{sys}1.ENA": 1}, "note": "boiler 2 faults -- swaps back to boiler 1"},
+                {"force": {f"%X%{sys}.BAS.DIS": 1, f"%X%{sys}.LL.STAT": 1, f"%X%{sys}.FLOW.STAT": 0}, "expect": {f"%X%{sys}1.ENA": 1, f"%X%{sys}2.ENA": 1}, "note": "BAS disabled -- both boilers forced on to run independently"},
+                {"force": {f"%X%{sys}.PUMP.LL.STAT": 1, f"%X%{sys}.P1.FLT": 1, f"%X%{sys}.P2.FLT": 0}, "expect": {f"%X%{sys}.PUMP.LL.STAT": 2, f"%X%{sys}.P1.ENA": 0, f"%X%{sys}.P2.ENA": 1, f"%X%{sys}.PUMP.ALM": 1}, "note": "lead pump faults -- swap to P2, alarm on"},
+                {"force": {f"%X%{sys}.PUMP.LL.STAT": 1, f"%X%{sys}.P1.FLT": 0, f"%X%{sys}.P2.FLT": 0}, "expect": {f"%X%{sys}.P1.ENA": 1, f"%X%{sys}.P2.ENA": 0, f"%X%{sys}.PUMP.ALM": 0}, "note": "no pump fault -- P1 stays lead, no alarm"},
+                {"force": {f"%X%{sys}.PUMP.LL.STAT": 1, f"%X%{sys}.P2.SPD": 45}, "expect": {f"%X%{sys}.P2.SPD": 0}, "note": "standby pump speed held at 0"},
+                {"force": {f"%X%{sys}.PUMP.LL.STAT": 2, f"%X%{sys}.P1.SPD": 45}, "expect": {f"%X%{sys}.P1.SPD": 0}, "note": "standby pump speed held at 0 (other direction)"},
+                {"force": {f"%X%{sys}.P1.FLT": 1, f"%X%{sys}.P2.FLT": 1}, "expect": {f"%X%{sys}.PUMP.ALM": 1}, "note": "both pumps faulted -- alarm on"}
+            ]
+        }
     }
 ]
 
