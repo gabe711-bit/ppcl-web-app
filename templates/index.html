@@ -1073,30 +1073,6 @@
             animation: spin 0.7s linear infinite;
         }
 
-        .sim-trace {
-            background: #070c12;
-            border: 1px solid var(--panel-border);
-            border-radius: 4px;
-            padding: 10px;
-            max-height: 320px;
-            overflow-y: auto;
-            font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.6;
-            color: #cbd5e1;
-            white-space: pre-wrap;
-        }
-
-        .sim-trace .cycle-header {
-            color: var(--siemens-teal);
-            font-weight: bold;
-            margin-top: 6px;
-        }
-
-        .sim-trace .trace-error {
-            color: #f87171;
-        }
-
         /* --- LEARN PPCL TAB --- */
         .learn-section {
             margin-bottom: 22px;
@@ -1846,8 +1822,8 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                         program, then click "Save to Panel" -- it compiles your code and checks it against the
                         sequence's real-world test cases in one step, exactly like uploading to a real panel, and
                         only accepts it once both pass. From there, force a point to whatever value you want with
-                        Command and watch your program react to it live, or click "▶ New Simulation" for a fresh
-                        set of point values. Stuck? The ❔ Help button gives extra guidance on the sequence without
+                        Command and watch your program react to it live, or click "↻ Reset to Defaults" to bring
+                        every point back to its baseline state. Stuck? The ❔ Help button gives extra guidance on the sequence without
                         handing you the answer, and the 📌 Program Points tab on the left keeps every point in the
                         scenario one click away to copy, even ones you've already used.</p>
                 </div>
@@ -1920,15 +1896,15 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     <div style="margin-bottom: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <button onclick="saveToPanel()" id="saveToPanelBtn" class="btn-gen"
                             style="width: auto; padding: 8px 16px;">💾 Save to Panel</button>
-                        <button onclick="newSimulationUI()" id="runSimBtn" class="btn-gen" disabled
+                        <button onclick="resetToDefaultsUI()" id="resetDefaultsBtn" class="btn-gen" disabled
                             title="Save to Panel first -- the simulator only runs code the panel has accepted"
-                            style="width: auto; padding: 8px 16px;">▶ New Simulation</button>
+                            style="width: auto; padding: 8px 16px;">↻ Reset to Defaults</button>
                         <span style="color: #64748b; font-size: 11px;">Save to Panel compiles your code, checks it
                             against the sequence's test cases, and only accepts it once both pass -- exactly like
-                            uploading to a real panel. Once accepted, forcing a point with Command immediately shows
-                            how your program reacts to it, live, the same way a real panel would. Click New
-                            Simulation whenever you want every point to take a fresh random reading, as if time had
-                            moved forward to a new moment. Results appear in the Point Editor panel to the
+                            uploading to a real panel. Once accepted, every point starts at a fixed baseline value --
+                            forcing a point with Command immediately shows how your program reacts to it, live, the
+                            same way a real panel would. Click Reset to Defaults to clear every Command and bring
+                            every point back to its starting baseline. Results appear in the Point Editor panel to the
                             right.</span>
                     </div>
 
@@ -1982,7 +1958,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     <div id="simResults" style="margin-top: 12px;">
                         <span style="color: #64748b; font-size: 13px;">Save to Panel to compile and validate your
                             code against the sequence -- once it's accepted, force a point with Command to see your
-                            program react live, or click New Simulation for a fresh set of point values.</span>
+                            program react live, or click Reset to Defaults to clear your Commands.</span>
                     </div>
 
                     <div id="checkResults" style="margin-top: 12px;"></div>
@@ -2558,24 +2534,24 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         }
 
         // Last point values produced by the simulator (Save to Panel's
-        // automatic first scan, a New Simulation click, or a point reacting
-        // to a Command/Relinquish) -- read by the hover tooltip so it can
-        // show a live value alongside a point's type, and used to seed the
-        // NEXT reaction so state carries forward instead of re-randomizing
-        // everything every time a point is forced. Null until the student
-        // runs something.
+        // automatic first scan, a Reset to Defaults click, or a point
+        // reacting to a Command/Relinquish) -- read by the hover tooltip so
+        // it can show a live value alongside a point's type, and used to
+        // seed the NEXT reaction so state carries forward instead of
+        // re-seeding everything every time a point is forced. Null until
+        // the student runs something.
         let lastSimSnapshot = null;
 
         // How many scans have run since the current program was accepted --
-        // purely a display counter (shown in the Point Values / Execution
-        // Trace headers as "Cycle #N") so the student can tell how far
-        // things have moved. Reset to 0 every time setPanelAccepted() runs
-        // (fresh accept or not) and every time New Simulation fires a fresh
-        // reading; incremented by one each time a Command/Relinquish makes
-        // the program react.
+        // purely a display counter (shown in the Point Values header as
+        // "Cycle #N") so the student can tell how far things have moved.
+        // Reset to 0 every time setPanelAccepted() runs (fresh accept or
+        // not) and every time Reset to Defaults fires a fresh baseline;
+        // incremented by one each time a Command/Relinquish makes the
+        // program react.
         let scanCount = 0;
 
-        // Gates the "New Simulation" button and point Command/Relinquish
+        // Gates the "Reset to Defaults" button and point Command/Relinquish
         // reactions: only usable once "Save to Panel" has actually accepted
         // the current code, mirroring a real panel -- you don't get to run
         // or force a program that hasn't been uploaded. Any edit to the
@@ -2587,7 +2563,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         function setPanelAccepted(accepted) {
             panelAccepted = accepted;
             scanCount = 0;
-            const btn = document.getElementById("runSimBtn");
+            const btn = document.getElementById("resetDefaultsBtn");
             if (btn) btn.disabled = !accepted;
             if (accepted) {
                 // A freshly-accepted program is a clean start, same as
@@ -2614,9 +2590,8 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         // driven purely by whatever the student's program does with it.
         // The override map (forcedValueState) doubles as the "force" input
         // to runSimulation(), exactly like the old force-values list did,
-        // so Save to Panel's accuracy check, New Simulation, and a point
-        // reacting to a Command all honor it automatically with no
-        // separate plumbing.
+        // so Save to Panel's accuracy check and a point reacting to a
+        // Command both honor it automatically with no separate plumbing.
         let forcedValueState = {};
         let editingPointName = null;
         let editingPendingValue = null;
@@ -3713,9 +3688,9 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             if (modal) modal.classList.remove("show");
             // Dismissing this modal IS the "Run Simulation" action -- gives
             // the student one deliberate moment where saving the panel
-            // visibly brings their points online, instead of values just
-            // appearing in the background.
-            newSimulationUI();
+            // visibly brings their points online at their fixed baseline
+            // values, instead of values just appearing in the background.
+            resetToDefaultsUI();
         }
 
         // ===================================================================
@@ -4055,12 +4030,11 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             throw new Error("Internal error: unknown condition node " + node.type);
         }
 
-        function simExecAction(action, ctx, trace, cycleNum) {
+        function simExecAction(action, ctx, cycleNum) {
             if (!action) return null;
             if (action.sampleInterval != null) {
                 const nCyc = simEvalExpr(action.sampleInterval, ctx);
                 if (nCyc > 0 && (cycleNum - 1) % nCyc !== 0) {
-                    trace.push(`    -> SAMPLE(${nCyc}) not due this cycle -- action skipped`);
                     return null;
                 }
             }
@@ -4068,22 +4042,18 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 const val = action.cmd === "ON" ? 1 : 0;
                 action.targets.forEach(t => {
                     ctx.pointTable.set(t.value, val);
-                    trace.push(`    -> ${action.cmd}("${t.value}")`);
                 });
             } else if (action.type === "set") {
                 const val = simEvalExpr(action.valueExpr, ctx);
                 action.targets.forEach(t => {
                     ctx.pointTable.set(t.value, val);
-                    trace.push(`    -> SET "${t.value}" = ${val}`);
                 });
             } else if (action.type === "assign") {
                 const val = simEvalExpr(action.valueExpr, ctx);
                 ctx.pointTable.set(action.target.value, val);
-                trace.push(`    -> "${action.target.value}" = ${val}`);
             } else if (action.type === "loop") {
-                trace.push(`    -> LOOP recognized (PID/analog modulation not numerically simulated)`);
+                // LOOP recognized -- PID/analog modulation not numerically simulated.
             } else if (action.type === "goto") {
-                trace.push(`    -> GOTO ${action.target}`);
                 return { jump: action.target };
             } else if (action.type === "seq") {
                 // Comma-chained commands off one THEN/ELSE -- run each in
@@ -4093,46 +4063,41 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 // never runs, matching how a real GOTO would abandon the
                 // rest of the line.
                 for (const sub of action.actions) {
-                    const signal = simExecAction(sub, ctx, trace, cycleNum);
+                    const signal = simExecAction(sub, ctx, cycleNum);
                     if (signal) return signal;
                 }
             }
             return null;
         }
 
-        function simExecuteStatement(entry, stmt, ctx, trace, cycleNum) {
+        function simExecuteStatement(entry, stmt, ctx, cycleNum) {
             try {
                 if (stmt.type === "if") {
                     if (stmt.sampleInterval != null) {
                         const nCyc = simEvalExpr(stmt.sampleInterval, ctx);
                         if (nCyc > 0 && (cycleNum - 1) % nCyc !== 0) {
-                            trace.push(`Line ${entry.lineNum}: SAMPLE(${nCyc}) not due this cycle -- skipped`);
                             return null;
                         }
                     }
                     const result = simEvalCond(stmt.cond, ctx);
-                    trace.push(`Line ${entry.lineNum}: IF (...) -> ${result ? "TRUE" : "FALSE"}`);
-                    if (result) return simExecAction(stmt.thenAction, ctx, trace, cycleNum);
-                    else if (stmt.elseAction) return simExecAction(stmt.elseAction, ctx, trace, cycleNum);
+                    if (result) return simExecAction(stmt.thenAction, ctx, cycleNum);
+                    else if (stmt.elseAction) return simExecAction(stmt.elseAction, ctx, cycleNum);
                 } else if (stmt.type === "action") {
                     if (stmt.sampleInterval != null) {
                         const nCyc = simEvalExpr(stmt.sampleInterval, ctx);
                         if (nCyc > 0 && (cycleNum - 1) % nCyc !== 0) {
-                            trace.push(`Line ${entry.lineNum}: SAMPLE(${nCyc}) not due this cycle -- skipped`);
                             return null;
                         }
                     }
-                    trace.push(`Line ${entry.lineNum}: action`);
-                    return simExecAction(stmt.action, ctx, trace, cycleNum);
+                    return simExecAction(stmt.action, ctx, cycleNum);
                 }
             } catch (err) {
                 ctx.errors.push(`Line ${entry.lineNum}: runtime error -- ${err.message}`);
-                trace.push(`Line ${entry.lineNum}: ⚠ ERROR -- ${err.message}`);
             }
             return null;
         }
 
-        function simRunPass(statements, subroutineRanges, findIndexByLineNum, ctx, cycleNum, trace) {
+        function simRunPass(statements, subroutineRanges, findIndexByLineNum, ctx, cycleNum) {
             let i = 0;
             let justJumped = true;
             const callStack = [];
@@ -4151,7 +4116,6 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
 
                 steps++;
                 if (steps > SIM_MAX_STEPS_PER_CYCLE) {
-                    trace.push(`⚠ Stopped after ${SIM_MAX_STEPS_PER_CYCLE} steps this cycle -- likely an infinite GOSUB or GOTO loop.`);
                     ctx.errors.push(`Cycle ${cycleNum}: exceeded step limit (possible infinite loop)`);
                     break;
                 }
@@ -4163,12 +4127,10 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 if (stmt.type === "gosub") {
                     const targetIdx = findIndexByLineNum(stmt.target);
                     if (targetIdx == null) {
-                        trace.push(`Line ${entry.lineNum}: GOSUB ${stmt.target} -- target line not found`);
                         ctx.errors.push(`GOSUB target line ${stmt.target} not found (called from line ${entry.lineNum})`);
                         i++;
                         continue;
                     }
-                    trace.push(`Line ${entry.lineNum}: GOSUB ${stmt.target}`);
                     callStack.push(i + 1);
                     const enteredRange = subroutineRanges.find(r => r.start === targetIdx);
                     if (enteredRange) activeSubStack.push(enteredRange);
@@ -4178,9 +4140,7 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                 }
 
                 if (stmt.type === "return") {
-                    trace.push(`Line ${entry.lineNum}: RETURN`);
                     if (callStack.length === 0) {
-                        trace.push(`  (no active GOSUB call -- ending this cycle's pass here)`);
                         break;
                     }
                     i = callStack.pop();
@@ -4189,11 +4149,10 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     continue;
                 }
 
-                const signal = simExecuteStatement(entry, stmt, ctx, trace, cycleNum);
+                const signal = simExecuteStatement(entry, stmt, ctx, cycleNum);
                 if (signal && signal.jump != null) {
                     const targetIdx = findIndexByLineNum(signal.jump);
                     if (targetIdx == null) {
-                        trace.push(`  GOTO ${signal.jump} -- target line not found`);
                         ctx.errors.push(`GOTO target line ${signal.jump} not found (from line ${entry.lineNum})`);
                         i++;
                         continue;
@@ -4269,26 +4228,31 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             // percentage-style float -- and a program written against
             // ".EQ. 0"/".EQ. 1" breaks the moment the simulator hands it
             // something like 47.3. Matched by name since these are a
-            // fixed, known set of points across the templates.
+            // fixed, known set of points across the templates. Defaults to
+            // "min" (the neutral/normal state -- Occupied, unit-1-lead,
+            // Auto) rather than a random code, since starting values are
+            // now a fixed baseline the student deliberately changes with
+            // Command, not a random draw.
             const DISCRETE_CODE_POINTS = [
                 { re: /\.OCC\.STATE$/i, min: 0, max: 1 },   // 0 = Occupied, 1 = Unoccupied
                 { re: /\.LL\.STAT$/i, min: 1, max: 2 },      // 1 = unit 1 lead, 2 = unit 2 lead
                 { re: /\.MAN\.LEAD$/i, min: 0, max: 2 },     // 0 = Auto, 1/2 = forced lead
             ];
-            const randomDiscreteCode = (name) => {
-                for (const { re, min, max } of DISCRETE_CODE_POINTS) {
-                    if (re.test(name)) return min + Math.floor(Math.random() * (max - min + 1));
+            const defaultDiscreteCode = (name) => {
+                for (const { re, min } of DISCRETE_CODE_POINTS) {
+                    if (re.test(name)) return min;
                 }
                 return null;
             };
 
             // Room temperature (RMT) and its associated comfort setpoints
-            // (cooling/heating/warmup/cooldown setpoints) should never get a
-            // random default outside the range a real occupied space sits
-            // in -- a simulated room at 4 degrees or 97 degrees isn't a
+            // (cooling/heating/warmup/cooldown setpoints) default to a
+            // fixed, realistic occupied-space reading rather than a random
+            // one -- a simulated room at 4 degrees or 97 degrees isn't a
             // realistic starting point for a training scenario.
             const isRoomTempPoint = (name) =>
                 /\.RMT(\.|$)/.test(name) || /\.(CLG|HTG|WU|CD)\.SP(\.ACT)?$/.test(name);
+            const ROOM_TEMP_DEFAULT = 72.0;
 
             // Every other kind of HVAC temperature/setpoint point gets its
             // own realistic band too -- a chilled-water temp defaulting to
@@ -4308,7 +4272,11 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             // it. No air-side comfort temp or setpoint here ever goes below
             // 55 or above 90 -- non-air points (chiller/condenser/tower/
             // boiler water, refrigerant/compressed-air discharge gas) get
-            // their own realistic non-comfort bands instead.
+            // their own realistic non-comfort bands instead. The default
+            // returned is the midpoint of each band, not a random draw
+            // within it -- every scenario now starts from the same fixed,
+            // realistic baseline, and it's the student's job to Command a
+            // point away from that baseline and watch the program react.
             const HVAC_TEMP_RANGES = [
                 // Compressor/refrigerant discharge gas temp, or a
                 // compressed-air discharge temp -- both run 150-280F by
@@ -4351,58 +4319,62 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             ];
 
             // Percent-style analog points (fan speed commands, valve/
-            // damper positions, humidity) are legitimately 0-100 -- keep
-            // the old wide-open range for these and anything unrecognized
-            // (pressures, flows, misc virtuals) where no single realistic
-            // band applies across every scenario.
-            const randomAnalogDefault = (name, desc) => {
+            // damper positions, humidity) and anything unrecognized
+            // (pressures, flows, misc virtuals) default to 0 -- idle/
+            // closed/off, the resting state of a point nothing has
+            // commanded yet, same as the HVAC-band points above defaulting
+            // to a fixed midpoint instead of a random draw.
+            const defaultAnalogValue = (name, desc) => {
                 for (const { test, re, min, max } of HVAC_TEMP_RANGES) {
                     const matched = (test && test(name, desc || "")) || (re && re.test(name));
-                    if (matched) return Math.round((min + Math.random() * (max - min)) * 10) / 10;
+                    if (matched) return Math.round(((min + max) / 2) * 10) / 10;
                 }
-                return Math.round(Math.random() * 1000) / 10;
+                return 0;
             };
 
+            // Starting point values are a fixed, deterministic baseline --
+            // not a random draw -- so the program's behavior is fully
+            // predictable from the code alone. The student drives the
+            // simulation by Commanding specific points away from this
+            // baseline and watching the program react live, rather than
+            // the simulator handing them an already-randomized world.
             const pointTable = new Map();
             const initialSnapshot = {};
             activePoints.forEach(p => {
                 let val;
                 const hasForced = forcedValues && Object.prototype.hasOwnProperty.call(forcedValues, p.name);
-                const discreteCode = hasForced ? null : randomDiscreteCode(p.name);
+                const discreteCode = hasForced ? null : defaultDiscreteCode(p.name);
                 if (hasForced) {
                     val = forcedValues[p.name];
                 } else if (["DI", "DO", "BV"].includes(p.type)) {
-                    val = Math.random() < 0.5 ? 0 : 1;
+                    val = 0;
                 } else if (discreteCode !== null) {
                     val = discreteCode;
                 } else if (isRoomTempPoint(p.name)) {
-                    val = Math.round((55 + Math.random() * 35) * 10) / 10;
+                    val = ROOM_TEMP_DEFAULT;
                 } else {
-                    val = randomAnalogDefault(p.name, p.desc);
+                    val = defaultAnalogValue(p.name, p.desc);
                 }
                 pointTable.set(p.name, val);
                 initialSnapshot[p.name] = val;
             });
 
             const ctx = { pointTable, errors: [], undeclared: new Set() };
-            const trace = [];
 
             if (statements.length === 0) {
                 return {
-                    parseErrors, runtimeErrors: [], trace: [], initialSnapshot,
+                    parseErrors, runtimeErrors: [], initialSnapshot,
                     finalSnapshot: initialSnapshot, undeclaredPoints: [], noStatements: true
                 };
             }
 
             for (let cycle = 1; cycle <= cycles; cycle++) {
-                trace.push(`__CYCLE__${cycle}`);
-                simRunPass(statements, subroutineRanges, findIndexByLineNum, ctx, cycle, trace);
+                simRunPass(statements, subroutineRanges, findIndexByLineNum, ctx, cycle);
             }
 
             return {
                 parseErrors,
                 runtimeErrors: ctx.errors,
-                trace,
                 initialSnapshot,
                 finalSnapshot: Object.fromEntries(pointTable),
                 undeclaredPoints: Array.from(ctx.undeclared)
@@ -4413,19 +4385,20 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         // never more. Each click seeds from lastSimSnapshot (the point
         // values the previous scan settled on) layered with whatever the
         // student currently has Commanded, so state carries forward scan to
-        // scan instead of everything re-randomizing. This is also what the
+        // scan instead of everything re-seeding. This is also what the
         // PANEL ACCEPTED popup's OK button triggers, for the automatic
         // first scan.
-        // "New Simulation" -- every point (except whatever's currently
-        // Commanded) takes a completely fresh random reading, as if time
-        // had moved forward to a new, unrelated moment. Deliberately
-        // ignores lastSimSnapshot entirely rather than carrying anything
-        // forward, which is what makes this different from a point
-        // reacting to a Command (see reactToPointChange() below) -- this
-        // is a new scan of the world, not the program reacting to one
-        // input changing.
-        function newSimulationUI() {
-            const btn = document.getElementById("runSimBtn");
+        // "Reset to Defaults" -- clears every Command the student has
+        // applied and runs the program fresh from the same fixed,
+        // deterministic baseline every point starts at (see
+        // defaultAnalogValue()/defaultDiscreteCode()/ROOM_TEMP_DEFAULT in
+        // runSimulation()). Deliberately ignores lastSimSnapshot entirely
+        // rather than carrying anything forward, which is what makes this
+        // different from a point reacting to a Command (see
+        // reactToPointChange() below) -- this is a clean baseline, not the
+        // program reacting to one input changing.
+        function resetToDefaultsUI() {
+            const btn = document.getElementById("resetDefaultsBtn");
             const results = document.getElementById("simResults");
             const code = document.getElementById("codeEditor").value;
 
@@ -4439,7 +4412,8 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
             btn.innerHTML = `<span class="spinner"></span>Running...`;
 
             try {
-                const result = runSimulation(1, getForcedValues());
+                forcedValueState = {};
+                const result = runSimulation(1, {});
                 lastSimSnapshot = result.finalSnapshot;
                 scanCount = 1;
                 renderSimulationResults(result);
@@ -4459,8 +4433,8 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         // from this change move. Anything the program doesn't reference
         // stays exactly where it was, exactly like forcing one point on a
         // real, already-running panel and watching the rest of the logic
-        // react to it live -- not a fresh random re-roll of the whole
-        // world (that's what New Simulation is for).
+        // react to it live -- not a clean baseline reset of the whole
+        // program (that's what Reset to Defaults is for).
         function reactToPointChange() {
             renderPointBlocks();
             if (!panelAccepted) return;
@@ -4479,16 +4453,16 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
         }
 
         // --- COLLAPSIBLE RESULT SECTIONS ---
-        // Point Values, Execution Trace, and Automated Accuracy Check can
-        // all get long, so each is individually collapsible. State
-        // persists across re-renders within the tab (e.g. re-running the
-        // simulation keeps a section you collapsed collapsed) but always
-        // starts back at expanded once a fresh scenario loads, via
+        // Point Values and Automated Accuracy Check can both get long, so
+        // each is individually collapsible. State persists across
+        // re-renders within the tab (e.g. re-running the simulation keeps
+        // a section you collapsed collapsed) but always starts back at
+        // expanded once a fresh scenario loads, via
         // resetResultSectionCollapse() below.
-        let resultSectionCollapsed = { pointValues: false, executionTrace: false, accuracyCheck: false };
+        let resultSectionCollapsed = { pointValues: false, accuracyCheck: false };
 
         function resetResultSectionCollapse() {
-            resultSectionCollapsed = { pointValues: false, executionTrace: false, accuracyCheck: false };
+            resultSectionCollapsed = { pointValues: false, accuracyCheck: false };
         }
 
         function toggleResultSection(key) {
@@ -4544,17 +4518,6 @@ DBSWIT (1, RMT, 68, 70, HWP, HWV)</div>
                     `</div>`;
             });
             html += `<div id="resultSection_pointValues" style="display:${resultSectionCollapsed.pointValues ? "none" : "block"};">${pointValuesHtml}</div>`;
-
-            html += collapsibleResultHeader("executionTrace", "Execution Trace");
-            const traceHtml = result.trace.map(line => {
-                if (line.startsWith("__CYCLE__")) {
-                    return `<div class="cycle-header">── Cycle #${scanCount} ──</div>`;
-                }
-                const cls = line.includes("ERROR") || line.includes("⚠") ? "trace-error" : "";
-                return `<div class="${cls}">${line}</div>`;
-            }).join("");
-            html += `<div id="resultSection_executionTrace" style="display:${resultSectionCollapsed.executionTrace ? "none" : "block"};">` +
-                `<div class="sim-trace">${traceHtml || "(nothing executed)"}</div></div>`;
 
             results.innerHTML = html;
         }
