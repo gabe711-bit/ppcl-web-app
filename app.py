@@ -1743,6 +1743,53 @@ TEMPLATES = [
                 {"force": {f"%X%{sys}.FLT.DP": 0.4}, "expect": {f"%X%{sys}.FLT.ALM": 0}, "note": "filter DP normal -- filter alarm off"}
             ]
         }
+    },
+    {
+        "title": "Chilled Water Plant Complete Sequence (Enable, Failure Fallback, Pump Lead-Lag, Min Flow)",
+        "difficulty": "expert",
+        "multiLine": True,
+        "systems": CHILLER_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Chilled Water Plant Complete Sequence",
+            "prompt": f"This is a complete real-world chilled water plant sequence -- everything a field tech would actually write for the plant as a whole, not one isolated slice. System enable: chillers are disabled entirely whenever Outside Air Temp (\"%X%{sys}.OAT\") is below 50 degrees. Otherwise, on a call for cooling -- Building Cooling Demand (\"%X%{sys}.CLG.DMD\") ON -- open the Chiller Isolation Valve (\"%X%{sys}.ISO.VLV\"); once that valve is open AND Primary Flow Proven Status (\"%X%{sys}.FLOW.STAT\") is ON, turn ON Chiller Enable (\"%X%{sys}.ENA\"). This plant also needs to survive a total BAS failure: if BAS Disabled (\"%X%{sys}.BAS.DIS\" -- a watchdog input, ON when the BAS itself has lost communication or failed) is ON and Outside Air Temp is still 50 or above, force Chiller Enable ON regardless of demand or flow proof, so the plant keeps cooling the building even with no controls network at all. Independent of all of that, the Chilled Water Supply Setpoint (\"%X%{sys}.CHW.SP\" -- virtual) is always 42 degrees; the chiller's own packaged controller handles the actual modulation to hit it. Two secondary pumps, {sys}.P1 and {sys}.P2, share lead-lag duty, tracked by a Lead-Lag Status point (\"%X%{sys}.LL.STAT\", 1 = P1 lead, 2 = P2 lead): if the currently-lead pump's fault contact (\"%X%{sys}.P1.FLT\" or \"%X%{sys}.P2.FLT\") trips ON, immediately swap Lead-Lag Status to the other pump -- that swap should persist, not bounce back once the fault clears. Every scan, drive Pump 1 Enable (\"%X%{sys}.P1.ENA\") and Pump 2 Enable (\"%X%{sys}.P2.ENA\") to match whichever one Lead-Lag Status currently says is lead. Separately, if either pump's fault contact is ON, turn ON a Pump Fault Alarm (\"%X%{sys}.PUMP.ALM\" -- virtual); otherwise turn it OFF. This plant also has freeze protection: if Outside Air Temp drops below 37 degrees, force Pump 1 Enable ON regardless of anything else, to keep water moving through the evaporator and prevent it from freezing. Whichever pump is currently lead should have a LOOP modulating its Pump Speed Output (\"%X%{sys}.P1.SPD\" or \"%X%{sys}.P2.SPD\") to hold System Differential Pressure (\"%X%{sys}.DP\") at a Differential Pressure Setpoint (\"%X%{sys}.DP.SP\"); the standby pump's speed output should be held at 0. Finally, and completely independent of pump staging, run a LOOP so the Minimum Flow Bypass Valve (\"%X%{sys}.BYP.VLV\") modulates to hold CHW Supply Flow (\"%X%{sys}.FLOW\") at the Minimum Flow Setpoint (\"%X%{sys}.MIN.FLOW.SP\") -- this loop runs all the time, regardless of plant enable state, to protect the pumps and chiller from a dead-headed condition at reduced load.",
+            "points": [
+                {"name": f"%X%{sys}.OAT", "desc": "Outside Air Temp Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.CLG.DMD", "desc": "Building Cooling Demand Contact", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.ISO.VLV", "desc": "Chiller Isolation Valve Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.FLOW.STAT", "desc": "Primary Flow Proven Status (flow switch)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.ENA", "desc": "Chiller Enable Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.BAS.DIS", "desc": "BAS Disabled Watchdog Input (ON when the BAS has lost comms or failed)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.CHW.SP", "desc": "Chilled Water Supply Temp Setpoint (virtual point, fixed 42 deg ADJ)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.P1.ENA", "desc": "Secondary CHW Pump 1 Enable Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.P2.ENA", "desc": "Secondary CHW Pump 2 Enable Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.LL.STAT", "desc": "Pump Lead-Lag Status Code (virtual point, 1 = P1 lead, 2 = P2 lead)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.P1.FLT", "desc": "Pump 1 Fault Contact", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.P2.FLT", "desc": "Pump 2 Fault Contact", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.PUMP.ALM", "desc": "Pump Fault Alarm (virtual point)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}.DP", "desc": "System Differential Pressure Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.DP.SP", "desc": "Differential Pressure Setpoint (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.P1.SPD", "desc": "Pump 1 Speed Control Output (0-100%)", "type": "AO", "kind": "physical"},
+                {"name": f"%X%{sys}.P2.SPD", "desc": "Pump 2 Speed Control Output (0-100%)", "type": "AO", "kind": "physical"},
+                {"name": f"%X%{sys}.FLOW", "desc": "CHW Supply Flow Meter", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.MIN.FLOW.SP", "desc": "Minimum Flow Setpoint (virtual point, fixed 103 GPM ADJ)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.BYP.VLV", "desc": "Minimum Flow Bypass Valve Output (0-100%)", "type": "AO", "kind": "physical"}
+            ],
+            "help": "Flat, independent lines throughout -- PPCL here doesn't support nesting an IF inside a THEN/ELSE, and a LOOP call has to be the only thing on its line (it swallows anything chained after it, even an ELSE). Build it in this order: (1) IF OAT .GE. 50 .AND. CLG.DMD .EQ. 1 THEN ISO.VLV = 1 ELSE ISO.VLV = 0; (2) IF ISO.VLV .EQ. 1 .AND. FLOW.STAT .EQ. 1 THEN ENA = 1 ELSE ENA = 0; (3) IF BAS.DIS .EQ. 1 .AND. OAT .GE. 50 THEN ENA = 1 -- placed AFTER step 2 so the catastrophic-failure override actually wins over whatever demand/flow just decided; (4) an unconditional CHW.SP = 42 line, no IF needed; (5) the lead-lag swap -- two lines, IF LL.STAT .EQ. 1 .AND. P1.FLT .EQ. 1 THEN LL.STAT = 2, and the mirror for P2 -- come BEFORE step 6 so the enable dispatch below sees the freshly-swapped status the same scan; (6) two more lines dispatch the enables purely off the current LL.STAT (IF LL.STAT .EQ. 1 THEN P1.ENA=1, P2.ENA=0, and the mirror for LL.STAT .EQ. 2); (7) the fault alarm is its own unrelated line, .OR. together both fault contacts; (8) freeze protection -- IF OAT .LT. 37 THEN P1.ENA = 1 -- placed AFTER step 6 so it overrides whatever the lead-lag dispatch just picked; (9) the pump-speed LOOPs -- four lines, one LOOP per pump gated on LL.STAT picking it as lead, and one hold-at-0 line per pump gated on LL.STAT picking the OTHER one as lead; (10) the minimum-flow bypass LOOP is a single unconditional line at the very end, with no gating at all -- it always runs.",
+            "checks": [
+                {"force": {f"%X%{sys}.OAT": 60, f"%X%{sys}.CLG.DMD": 1, f"%X%{sys}.FLOW.STAT": 1, f"%X%{sys}.BAS.DIS": 0}, "expect": {f"%X%{sys}.ENA": 1}, "note": "OAT above 50, demand present, flow proven -- chiller enables"},
+                {"force": {f"%X%{sys}.OAT": 60, f"%X%{sys}.CLG.DMD": 1, f"%X%{sys}.FLOW.STAT": 0, f"%X%{sys}.BAS.DIS": 0}, "expect": {f"%X%{sys}.ENA": 0}, "note": "valve would open but flow isn't proven -- chiller stays off"},
+                {"force": {f"%X%{sys}.OAT": 40, f"%X%{sys}.CLG.DMD": 1, f"%X%{sys}.FLOW.STAT": 1, f"%X%{sys}.BAS.DIS": 0}, "expect": {f"%X%{sys}.ENA": 0}, "note": "OAT below 50 disables the plant regardless of demand or flow"},
+                {"force": {f"%X%{sys}.BAS.DIS": 1, f"%X%{sys}.OAT": 60, f"%X%{sys}.CLG.DMD": 0, f"%X%{sys}.FLOW.STAT": 0}, "expect": {f"%X%{sys}.ENA": 1}, "note": "BAS disabled, OAT above 50 -- chiller force-enables despite no demand or proven flow"},
+                {"force": {f"%X%{sys}.BAS.DIS": 1, f"%X%{sys}.OAT": 40, f"%X%{sys}.CLG.DMD": 0, f"%X%{sys}.FLOW.STAT": 0}, "expect": {f"%X%{sys}.ENA": 0}, "note": "even the BAS-disabled fallback still requires OAT 50 or above"},
+                {"force": {}, "expect": {f"%X%{sys}.CHW.SP": 42}, "note": "chilled water setpoint is always 42"},
+                {"force": {f"%X%{sys}.LL.STAT": 1, f"%X%{sys}.P1.FLT": 1, f"%X%{sys}.P2.FLT": 0}, "expect": {f"%X%{sys}.LL.STAT": 2, f"%X%{sys}.P1.ENA": 0, f"%X%{sys}.P2.ENA": 1, f"%X%{sys}.PUMP.ALM": 1}, "note": "lead pump (P1) faults -- immediate swap to P2, alarm on"},
+                {"force": {f"%X%{sys}.LL.STAT": 1, f"%X%{sys}.P1.FLT": 0, f"%X%{sys}.P2.FLT": 0}, "expect": {f"%X%{sys}.P1.ENA": 1, f"%X%{sys}.P2.ENA": 0, f"%X%{sys}.PUMP.ALM": 0}, "note": "no fault -- P1 stays lead and runs, no alarm"},
+                {"force": {f"%X%{sys}.OAT": 30}, "expect": {f"%X%{sys}.P1.ENA": 1}, "note": "OAT below 37 -- freeze protection forces P1 on regardless of lead-lag state"},
+                {"force": {f"%X%{sys}.LL.STAT": 1, f"%X%{sys}.P2.SPD": 45}, "expect": {f"%X%{sys}.P2.SPD": 0}, "note": "P2 is standby -- speed held at 0 regardless of its previous forced value"},
+                {"force": {f"%X%{sys}.LL.STAT": 2, f"%X%{sys}.P1.SPD": 45}, "expect": {f"%X%{sys}.P1.SPD": 0}, "note": "P1 is standby this time -- speed held at 0"},
+                {"force": {f"%X%{sys}.P1.FLT": 1, f"%X%{sys}.P2.FLT": 1}, "expect": {f"%X%{sys}.PUMP.ALM": 1}, "note": "both pumps faulted -- alarm on"}
+            ]
+        }
     }
 ]
 
