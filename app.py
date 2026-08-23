@@ -1560,6 +1560,129 @@ TEMPLATES = [
                 {"force": {f"%X%{sys}.FRZ.ALM.RST": 1, f"%X%{sys}.FRZ.STAT": 0, "%X%BLDG.OCC.STATE": 0, f"%X%{sys}.FRZ.ALM": 1}, "expect": {f"%X%{sys}.FRZ.ALM": 0}, "note": "reset pulsed -- alarm clears back OFF even though the dispatch falls into the Occupied block, which never otherwise touches FRZ.ALM"}
             ]
         }
+    },
+    # ---------------- ADDED FROM REAL FIELD SEQUENCES ----------------
+    {
+        "title": "Exhaust Fan Ventilation Control with Timed Startup and Emergency Shutdown",
+        "difficulty": "easy",
+        "multiLine": True,
+        "systems": EF_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Ventilation Control with Timed Startup and Emergency Shutdown",
+            "prompt": f"This exhaust fan runs on straight space-temperature ventilation control. If Space Temperature (\"%X%{sys}.SPACE.T\") is above 80 degrees, the fan should be called to run; at or below 80 it should not. Real two-position dampers need time to open before the fan itself can start: whenever the fan is called to run, turn ON the Outside Air Intake Damper (\"%X%{sys}.OAD.CMD\") and Exhaust Air Damper (\"%X%{sys}.EAD.CMD\") right away, and accumulate a Start Delay Timer (\"%X%{sys}.START.TMR\" -- virtual) by 1 second every scan using SAMPLE(1) while the fan is called to run, resetting it to 0 whenever it isn't. Only energize the actual Exhaust Fan Run output (\"%X%{sys}.EF.RUN\") once START.TMR exceeds 15 (seconds) -- giving the dampers time to fully open first. All of this is overridden by an emergency shutdown: if Emergency Shutdown Button (\"%X%{sys}.ATFP\") is ON, immediately de-energize EF.RUN, close both dampers (OAD.CMD and EAD.CMD OFF), and reset START.TMR to 0, skipping the ventilation and startup-timer logic entirely. Finally, add a simple informational alarm, completely independent of fan operation: if Space Temperature falls below 45 degrees (10 below the 55-degree low setpoint) or climbs above 90 degrees (10 above the 80-degree high setpoint), turn ON a Space Temp Out-of-Range Alarm (\"%X%{sys}.SPACE.ALM\" -- virtual); otherwise turn it OFF.",
+            "points": [
+                {"name": f"%X%{sys}.SPACE.T",
+                    "desc": "Space Temperature Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.OAD.CMD",
+                    "desc": "Outside Air Intake Damper Command (two-position)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.EAD.CMD",
+                    "desc": "Exhaust Air Damper Command (two-position)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.EF.RUN",
+                    "desc": "Exhaust Fan Run Output", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.START.TMR",
+                    "desc": "Start Delay Timer Accumulator (virtual point)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.ATFP",
+                    "desc": "Emergency Shutdown Button (double-action switch)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.SPACE.ALM",
+                    "desc": "Space Temp Out-of-Range Alarm (virtual point)", "type": "BV", "kind": "virtual"}
+            ],
+            "help": "PPCL here doesn't support an IF inside a THEN/ELSE, so write this as flat, independent lines and fold \"only when ATFP is off\" into each condition with .AND. ATFP .EQ. 0 instead of nesting. One line handles the shutdown: ATFP .EQ. 1 -- force EF.RUN, OAD.CMD, and EAD.CMD all OFF and START.TMR to 0. Two more lines split the ventilation call into its ON case (ATFP .EQ. 0 .AND. SPACE.T .GT. 80 -- open both dampers, accumulate START.TMR by 1 with SAMPLE(1)) and OFF case (ATFP .EQ. 0 .AND. SPACE.T .LE. 80 -- close both dampers, reset START.TMR to 0). A fourth line reads the now-current START.TMR to decide EF.RUN (ATFP .EQ. 0 .AND. START.TMR .GT. 15 .AND. SPACE.T .GT. 80) -- it has to come after the first three, since PPCL executes top-to-bottom within one scan and needs the timer value they just wrote. The out-of-range alarm is a fifth, completely unrelated line -- .OR. together SPACE.T .LT. 45 and SPACE.T .GT. 90 -- that runs every scan regardless of ATFP.",
+            "checks": [
+                {"force": {f"%X%{sys}.ATFP": 0, f"%X%{sys}.SPACE.T": 85, f"%X%{sys}.START.TMR": 0}, "expect": {f"%X%{sys}.OAD.CMD": 1, f"%X%{sys}.EAD.CMD": 1, f"%X%{sys}.EF.RUN": 0}, "note": "call for ventilation, dampers open immediately but fan hasn't been delayed long enough yet"},
+                {"force": {f"%X%{sys}.ATFP": 0, f"%X%{sys}.SPACE.T": 85, f"%X%{sys}.START.TMR": 0}, "cycles": 16, "expect": {f"%X%{sys}.OAD.CMD": 1, f"%X%{sys}.EAD.CMD": 1, f"%X%{sys}.EF.RUN": 1}, "note": "call sustained past 15 seconds -- fan finally energizes"},
+                {"force": {f"%X%{sys}.ATFP": 0, f"%X%{sys}.SPACE.T": 70}, "expect": {f"%X%{sys}.OAD.CMD": 0, f"%X%{sys}.EAD.CMD": 0, f"%X%{sys}.EF.RUN": 0, f"%X%{sys}.START.TMR": 0}, "note": "no call for ventilation -- everything off, timer held at 0"},
+                {"force": {f"%X%{sys}.ATFP": 1, f"%X%{sys}.SPACE.T": 85, f"%X%{sys}.START.TMR": 50, f"%X%{sys}.EF.RUN": 1, f"%X%{sys}.OAD.CMD": 1, f"%X%{sys}.EAD.CMD": 1}, "expect": {f"%X%{sys}.EF.RUN": 0, f"%X%{sys}.OAD.CMD": 0, f"%X%{sys}.EAD.CMD": 0, f"%X%{sys}.START.TMR": 0}, "note": "emergency shutdown overrides everything even with an active call and an already-expired timer"},
+                {"force": {f"%X%{sys}.SPACE.T": 95}, "expect": {f"%X%{sys}.SPACE.ALM": 1}, "note": "well above the high alarm band -- alarm on"},
+                {"force": {f"%X%{sys}.SPACE.T": 40}, "expect": {f"%X%{sys}.SPACE.ALM": 1}, "note": "well below the low alarm band -- alarm on"},
+                {"force": {f"%X%{sys}.SPACE.T": 70}, "expect": {f"%X%{sys}.SPACE.ALM": 0}, "note": "within the normal band -- no alarm"}
+            ]
+        }
+    },
+    {
+        "title": "Make-Up Air Unit Supply Air Temperature Control by OAT Changeover",
+        "difficulty": "medium",
+        "multiLine": True,
+        "systems": MAU_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Supply Air Temperature Control by OAT Changeover",
+            "prompt": f"Make-Up Air Unit {sys} changes its supply-air control strategy based on outside air temperature. When Outside Air Temp (\"%X%{sys}.OAT\") is below 55 degrees, the unit is in heating mode: run a LOOP to modulate the Pre-Heat Valve (\"%X%{sys}.PH.VLV\", 0-100%) to maintain Conditioned Air Temp (\"%X%{sys}.COND.T\") at the Conditioned Air Setpoint (\"%X%{sys}.COND.SP\" -- virtual, fixed at 55 degrees), and run a second LOOP to modulate the Main Heating Valve (\"%X%{sys}.HTG.VLV\", 0-100%) to maintain Zone Temp (\"%X%{sys}.ZN.T\") at the Zone Heating Setpoint (\"%X%{sys}.ZN.HTG.SP\" -- virtual, fixed at 68 degrees); hold the Cooling Valve (\"%X%{sys}.CLG.VLV\", 0-100%) closed at 0 in this mode, since it isn't needed. When Outside Air Temp is 55 degrees or above, the unit switches to cooling mode: run a LOOP to modulate the Cooling Valve to maintain Conditioned Air Temp at that same Conditioned Air Setpoint, and run the Main Heating Valve LOOP again -- but this time targeting Supply Air Temp (\"%X%{sys}.SAT\") against a different target, the Supply Air Setpoint (\"%X%{sys}.SAT.SP\" -- virtual, fixed at 60 degrees); hold the Pre-Heat Valve closed at 0 in this mode instead.",
+            "points": [
+                {"name": f"%X%{sys}.OAT", "desc": "Outside Air Temp Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.COND.T", "desc": "Conditioned (post-coil) Air Temp Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.ZN.T", "desc": "Zone Temperature Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.SAT", "desc": "Supply (final discharge) Air Temp Sensor", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.PH.VLV", "desc": "Pre-Heat Valve Control Output (0-100%)", "type": "AO", "kind": "physical"},
+                {"name": f"%X%{sys}.CLG.VLV", "desc": "Cooling Valve Control Output (0-100%)", "type": "AO", "kind": "physical"},
+                {"name": f"%X%{sys}.HTG.VLV", "desc": "Main Heating Valve Control Output (0-100%)", "type": "AO", "kind": "physical"},
+                {"name": f"%X%{sys}.COND.SP", "desc": "Conditioned Air Setpoint (virtual point, fixed 55 deg ADJ)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.ZN.HTG.SP", "desc": "Zone Heating Setpoint (virtual point, fixed 68 deg ADJ)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.SAT.SP", "desc": "Supply Air Setpoint in cooling mode (virtual point, fixed 60 deg ADJ)", "type": "AV", "kind": "virtual"}
+            ],
+            "help": "A LOOP call has to be the only thing on its line -- once LOOP appears, everything after it (even an ELSE) gets swallowed as part of the LOOP call, so never combine a LOOP with another action or an ELSE on the same line. Write six independent lines instead, each gated by its own OAT comparison: (1) OAT .LT. 55 -- LOOP for PH.VLV against COND.T/COND.SP; (2) OAT .GE. 55 -- PH.VLV = 0; (3) OAT .GE. 55 -- LOOP for CLG.VLV against COND.T/COND.SP; (4) OAT .LT. 55 -- CLG.VLV = 0; (5) OAT .LT. 55 -- LOOP for HTG.VLV against ZN.T/ZN.HTG.SP; (6) OAT .GE. 55 -- LOOP for HTG.VLV against SAT/SAT.SP instead. Lines 5 and 6 both drive the same output (HTG.VLV) but never fire on the same scan, since their OAT conditions are opposites. Use LOOP(type, pv, cv, sp, pg, ig, dg, st, bias, lo, hi, 0) with type=0 (direct-acting) for all three valves, pg=4.0, ig=0.2, dg=0.0, st=1, bias=50.0, lo=0, hi=100.",
+            "checks": [
+                {"force": {f"%X%{sys}.OAT": 40, f"%X%{sys}.CLG.VLV": 55}, "expect": {f"%X%{sys}.CLG.VLV": 0}, "note": "OAT below 55 -- heating mode; cooling valve held closed regardless of its previous position"},
+                {"force": {f"%X%{sys}.OAT": 65, f"%X%{sys}.PH.VLV": 55}, "expect": {f"%X%{sys}.PH.VLV": 0}, "note": "OAT at/above 55 -- cooling mode; preheat valve held closed"},
+                {"force": {f"%X%{sys}.OAT": 55, f"%X%{sys}.PH.VLV": 40}, "expect": {f"%X%{sys}.PH.VLV": 0}, "note": "OAT exactly at the 55-degree boundary -- counts as cooling mode (\"55 or above\"), so preheat valve is held closed"}
+            ]
+        }
+    },
+    {
+        "title": "Make-Up Air Unit Fan & Damper Start Sequencing with Weld Hood Airflow Reset",
+        "difficulty": "medium",
+        "multiLine": True,
+        "systems": MAU_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Fan & Damper Sequencing with Weld Hood Airflow Reset",
+            "prompt": f"Make-Up Air Unit {sys} exists to replace air pulled out by welding exhaust hoods, and only needs to run while at least one hood is active. If Weld Hood 1 Running (\"%X%{sys}.HOOD1.RUN\") is ON or Weld Hood 2 Running (\"%X%{sys}.HOOD2.RUN\") is ON, open the Supply Air Damper (\"%X%{sys}.SA.DMPR.CMD\") and Outside Air Damper (\"%X%{sys}.OA.DMPR.CMD\") fully; otherwise close both. The Supply Fan can only start once its discharge damper is actually proven open: turn ON Supply Fan Enable (\"%X%{sys}.SF.ENA\") only when at least one hood is running AND Discharge Damper Position Feedback (\"%X%{sys}.DISCH.DMPR.POS\") is greater than 95 (percent) -- otherwise keep the fan off. The airflow target changes with how many hoods are running: with both hoods running, set Airflow Setpoint (\"%X%{sys}.AF.SP\" -- virtual) to 5600 (CFM); with exactly one hood running, set it to 2800; with neither running, set it to 0. Finally, whenever the Supply Fan is enabled, run a LOOP to modulate Supply Fan Speed (\"%X%{sys}.SF.SPD\", 0-100%) to maintain Supply Airflow (\"%X%{sys}.AF\") at that Airflow Setpoint; when the fan isn't enabled, hold Supply Fan Speed at 0.",
+            "points": [
+                {"name": f"%X%{sys}.HOOD1.RUN", "desc": "Weld Hood 1 Running Status", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.HOOD2.RUN", "desc": "Weld Hood 2 Running Status", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.SA.DMPR.CMD", "desc": "Supply Air Damper Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.OA.DMPR.CMD", "desc": "Outside Air Damper Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.DISCH.DMPR.POS", "desc": "Discharge Damper Position Feedback (0-100%)", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.SF.ENA", "desc": "Supply Fan Enable Command", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.AF.SP", "desc": "Airflow Setpoint (virtual point, CFM)", "type": "AV", "kind": "virtual"},
+                {"name": f"%X%{sys}.AF", "desc": "Supply Airflow Sensor (CFM)", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.SF.SPD", "desc": "Supply Fan Speed Control Output (0-100%)", "type": "AO", "kind": "physical"}
+            ],
+            "help": "Four separate, independent pieces, all as flat top-level lines (PPCL here doesn't support an IF nested inside a THEN/ELSE). (1) Dampers: one IF/ELSE on HOOD1.RUN .OR. HOOD2.RUN. (2) Fan enable: its own IF/ELSE that ANDs the same hood-running condition with DISCH.DMPR.POS .GT. 95 -- write this as its own comparison, don't reuse a variable from step 1. (3) Airflow setpoint needs three outcomes, not two -- since you can't nest, use three separate lines with mutually exclusive compound conditions instead: HOOD1.RUN .AND. HOOD2.RUN -> 5600; (HOOD1.RUN .AND. NOT HOOD2.RUN) .OR. (HOOD2.RUN .AND. NOT HOOD1.RUN), written out as two .EQ. comparisons per hood, -> 2800; both hoods .EQ. 0 -> 0. (4) The LOOP has to be its own line, separate from the off-case, since a LOOP call swallows anything chained after it on the same line (even an ELSE): IF SF.ENA .EQ. 1 THEN LOOP(0, \"%X%{sys}.AF\", \"%X%{sys}.SF.SPD\", \"%X%{sys}.AF.SP\", 4.0, 0.2, 0.0, 1, 50.0, 0, 100, 0) on one line, and a separate IF SF.ENA .EQ. 0 THEN SF.SPD = 0 on the next.",
+            "checks": [
+                {"force": {f"%X%{sys}.HOOD1.RUN": 1, f"%X%{sys}.HOOD2.RUN": 0}, "expect": {f"%X%{sys}.SA.DMPR.CMD": 1, f"%X%{sys}.OA.DMPR.CMD": 1, f"%X%{sys}.AF.SP": 2800}, "note": "one hood running -- dampers open, airflow setpoint 2800"},
+                {"force": {f"%X%{sys}.HOOD1.RUN": 1, f"%X%{sys}.HOOD2.RUN": 1}, "expect": {f"%X%{sys}.AF.SP": 5600}, "note": "both hoods running -- airflow setpoint 5600"},
+                {"force": {f"%X%{sys}.HOOD1.RUN": 0, f"%X%{sys}.HOOD2.RUN": 0}, "expect": {f"%X%{sys}.SA.DMPR.CMD": 0, f"%X%{sys}.OA.DMPR.CMD": 0, f"%X%{sys}.AF.SP": 0, f"%X%{sys}.SF.ENA": 0, f"%X%{sys}.SF.SPD": 0}, "note": "no hoods running -- everything off, airflow setpoint 0, fan speed held at 0"},
+                {"force": {f"%X%{sys}.HOOD1.RUN": 1, f"%X%{sys}.HOOD2.RUN": 0, f"%X%{sys}.DISCH.DMPR.POS": 40}, "expect": {f"%X%{sys}.SF.ENA": 0}, "note": "hood running but discharge damper not yet proven open past 95% -- fan must stay off"},
+                {"force": {f"%X%{sys}.HOOD1.RUN": 1, f"%X%{sys}.HOOD2.RUN": 0, f"%X%{sys}.DISCH.DMPR.POS": 98}, "expect": {f"%X%{sys}.SF.ENA": 1}, "note": "hood running and discharge damper proven open past 95% -- fan enables"}
+            ]
+        }
+    },
+    {
+        "title": "Make-Up Air Unit Freeze Protection & Emergency Shutdown with Filter Alarm",
+        "difficulty": "medium",
+        "multiLine": True,
+        "systems": MAU_SYSTEMS,
+        "generate": lambda sys: {
+            "title": f"{sys} Freeze Protection & Emergency Shutdown with Filter Alarm",
+            "prompt": f"Make-Up Air Unit {sys} has two independent safety shutdowns and one alarm-only condition. If Low-Limit Freezestat (\"%X%{sys}.FRZ.STAT\") trips ON, shut down the Supply Fan (\"%X%{sys}.SF.ENA\" OFF), close both isolation dampers (\"%X%{sys}.SA.DMPR.CMD\" and \"%X%{sys}.OA.DMPR.CMD\" OFF), drive the Heating Water Valve (\"%X%{sys}.HW.VLV\", 0-100%) fully open to 100 to keep hot water moving through the coil, and turn ON a Freeze Alarm (\"%X%{sys}.FRZ.ALM\" -- virtual). Separately, if HVAC Emergency Shutdown (\"%X%{sys}.EMER.SD\") is ON, also shut down the Supply Fan and close both isolation dampers -- but this trigger does NOT drive the heating water valve or set the freeze alarm, since it's a different kind of shutdown (fire/smoke, not a freeze condition). When neither safety condition is active, leave the Supply Fan, dampers, and Heating Water Valve alone (driven by other logic outside this exercise) and make sure Freeze Alarm is OFF. Independent of both of those, monitor filter condition: if Filter Differential Pressure (\"%X%{sys}.FLT.DP\") rises above 1.00 (inches w.c.), turn ON a Filter Alarm (\"%X%{sys}.FLT.ALM\" -- virtual); otherwise turn it OFF. This filter check never affects the fan, dampers, or valve.",
+            "points": [
+                {"name": f"%X%{sys}.FRZ.STAT", "desc": "Low-Limit Freezestat Trip", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.EMER.SD", "desc": "HVAC Emergency Shutdown Switch (fire/smoke -- building-wide)", "type": "DI", "kind": "physical"},
+                {"name": f"%X%{sys}.SF.ENA", "desc": "Supply Fan Enable Command (already exists -- your logic must write to this point)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.SA.DMPR.CMD", "desc": "Supply Air Damper Command (already exists -- your logic must write to this point)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.OA.DMPR.CMD", "desc": "Outside Air Damper Command (already exists -- your logic must write to this point)", "type": "DO", "kind": "physical"},
+                {"name": f"%X%{sys}.HW.VLV", "desc": "Heating Water Valve Control Output (0-100%)", "type": "AO", "kind": "physical"},
+                {"name": f"%X%{sys}.FRZ.ALM", "desc": "Freeze Alarm (virtual point)", "type": "BV", "kind": "virtual"},
+                {"name": f"%X%{sys}.FLT.DP", "desc": "Filter Differential Pressure Sensor (in. w.c.)", "type": "AI", "kind": "physical"},
+                {"name": f"%X%{sys}.FLT.ALM", "desc": "Filter Alarm (virtual point)", "type": "BV", "kind": "virtual"}
+            ],
+            "help": "PPCL here doesn't support an IF nested inside a THEN/ELSE, so this is three independent top-level lines plus the filter check. FRZ.STAT .EQ. 1 covers the freeze case: fan off, dampers closed, HW.VLV = 100, FRZ.ALM = 1 -- no ELSE needed. A second line, FRZ.STAT .EQ. 0 .AND. EMER.SD .EQ. 1, covers emergency-shutdown-only: fan off and dampers closed, but leave HW.VLV and FRZ.ALM alone -- the .AND. FRZ.STAT .EQ. 0 stops this line from redundantly re-firing when both trips are active together. A third line, FRZ.STAT .EQ. 0 THEN FRZ.ALM = 0, is what actually clears the alarm once the freeze condition is gone. Neither trip line needs an ELSE -- when nothing is tripped, the fan/dampers/valve simply never get written by any of these three lines, which is exactly \"leave them alone.\" The filter check is a fourth, completely unrelated line with its own ELSE.",
+            "checks": [
+                {"force": {f"%X%{sys}.FRZ.STAT": 1, f"%X%{sys}.EMER.SD": 0, f"%X%{sys}.SF.ENA": 1}, "expect": {f"%X%{sys}.SF.ENA": 0, f"%X%{sys}.SA.DMPR.CMD": 0, f"%X%{sys}.OA.DMPR.CMD": 0, f"%X%{sys}.HW.VLV": 100, f"%X%{sys}.FRZ.ALM": 1}, "note": "freezestat tripped -- fan/dampers shut down, HW valve driven fully open, freeze alarm on"},
+                {"force": {f"%X%{sys}.FRZ.STAT": 0, f"%X%{sys}.EMER.SD": 1, f"%X%{sys}.SF.ENA": 1, f"%X%{sys}.HW.VLV": 30}, "expect": {f"%X%{sys}.SF.ENA": 0, f"%X%{sys}.SA.DMPR.CMD": 0, f"%X%{sys}.OA.DMPR.CMD": 0, f"%X%{sys}.HW.VLV": 30, f"%X%{sys}.FRZ.ALM": 0}, "note": "emergency shutdown only -- fan/dampers shut down too, but the heating water valve is left alone (not a freeze event) and freeze alarm stays off"},
+                {"force": {f"%X%{sys}.FRZ.STAT": 0, f"%X%{sys}.EMER.SD": 0, f"%X%{sys}.SF.ENA": 1, f"%X%{sys}.HW.VLV": 30}, "expect": {f"%X%{sys}.SF.ENA": 1, f"%X%{sys}.HW.VLV": 30, f"%X%{sys}.FRZ.ALM": 0}, "note": "neither trip active -- fan, dampers, and valve untouched; freeze alarm off"},
+                {"force": {f"%X%{sys}.FLT.DP": 1.5}, "expect": {f"%X%{sys}.FLT.ALM": 1}, "note": "filter DP above 1.00 -- filter alarm on"},
+                {"force": {f"%X%{sys}.FLT.DP": 0.4}, "expect": {f"%X%{sys}.FLT.ALM": 0}, "note": "filter DP normal -- filter alarm off"}
+            ]
+        }
     }
 ]
 
